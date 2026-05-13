@@ -829,7 +829,6 @@
 (() => {
   'use strict';
 
-  const TEAM_SIZE = 3;
   const SQUAD_COLORS = ['#84cc16', '#38bdf8'];
 
   const state = {
@@ -841,21 +840,9 @@
     ],
   };
 
-  // ---- Session planning ------------------------------------------------
-  //
-  // RULE: every player plays on every pitch in every round. No one rests.
-  //
-  // Approach: split the combined headcount into P pitches where each pitch is
-  // a single match of 3v3 / 3v2 / 2v2 (FA-approved sizes). Pick the smallest
-  // P such that A + B players fit cleanly into P matches with team sizes in
-  // {2, 3}. Bibs side = squad A teams; no-bibs side = squad B teams. If the
-  // headcounts don't divide cleanly across all pitches as pure squads, mix
-  // the minimum number of players across sides — those players take a bib
-  // on/off to join the opposite side for that session.
-  //
-  // Returns { pitches: [{bibs: team, noBibs: team}], crossCount: number }
-  // where each team has { players: [squadIdx...], side: 'bibs'|'noBibs' }.
-
+  // Pick the smallest pitch count P where A+B players fit into P matches sized
+  // 3v3 / 3v2 / 2v2. Prefer pure squad-vs-squad pairings; cross the fewest
+  // players over (bib on/off) when the counts don't divide pure.
   function planSession(squads) {
     const A = squads[0].count;
     const B = squads[1].count;
@@ -1255,6 +1242,7 @@
       return;
     }
 
+    const P = plan.P;
     rounds.forEach((round, rIdx) => {
       const roundEl = el('div', { class: 'round' });
       const head = el('div', { class: 'round-head' });
@@ -1267,9 +1255,8 @@
       const pitchesEl = el('div', { class: 'pitches' });
       round.forEach(([bibs, noBibs], pIdx) => {
         const pitch = el('div', { class: 'pitch' });
-        // Find each team's stable side index for naming.
-        const bibsIdx = plan.bibsTeams.indexOf(bibs);
-        const noBibsIdx = plan.noBibsTeams.indexOf(noBibs);
+        const bibsIdx = pIdx;
+        const noBibsIdx = (pIdx + rIdx) % P;
         const isShort = bibs.size === 2 || noBibs.size === 2;
         if (isShort) {
           const tag = `${bibs.size}v${noBibs.size}`;

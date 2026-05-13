@@ -1,0 +1,1352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#0a0f0a" />
+<title>3v3 Match Builder — FutureFit Session Planner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0f0a;
+    --surface: #131a13;
+    --surface-2: #1a221a;
+    --border: #2a352a;
+    --border-strong: #3a4a3a;
+    --turf: #84cc16;
+    --turf-dim: #65a30d;
+    --chalk: #f5f5f4;
+    --muted: #8a958a;
+    --warn: #f97316;
+    --danger: #ef4444;
+
+    --squad-a: #84cc16;
+    --squad-b: #38bdf8;
+
+    --pitch-stripe: rgba(255, 255, 255, 0.012);
+
+    --r-sm: 6px;
+    --r-md: 10px;
+    --r-lg: 16px;
+
+    --pad: clamp(14px, 3vw, 22px);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--chalk);
+    font-family: 'Outfit', system-ui, sans-serif;
+    font-weight: 400;
+    line-height: 1.5;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    background-image:
+      repeating-linear-gradient(
+        90deg,
+        var(--pitch-stripe) 0,
+        var(--pitch-stripe) 1px,
+        transparent 1px,
+        transparent 80px
+      ),
+      radial-gradient(ellipse at top, rgba(132, 204, 22, 0.04), transparent 60%);
+    background-attachment: fixed;
+  }
+
+  .wrap {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: var(--pad);
+    padding-bottom: 64px;
+  }
+
+  /* Header */
+  header.hero {
+    margin-bottom: 28px;
+    padding: 12px 0 18px;
+    border-bottom: 1px solid var(--border);
+  }
+  .eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: var(--turf);
+    margin-bottom: 8px;
+  }
+  h1 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(40px, 9vw, 72px);
+    font-weight: 400;
+    letter-spacing: 0.02em;
+    line-height: 0.95;
+    margin: 0 0 6px;
+    color: var(--chalk);
+  }
+  h1 .accent { color: var(--turf); }
+  .subtitle {
+    color: var(--muted);
+    font-size: 14px;
+    max-width: 56ch;
+  }
+
+  /* Section headings */
+  h2 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 28px;
+    font-weight: 400;
+    letter-spacing: 0.04em;
+    margin: 0 0 14px;
+    color: var(--chalk);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  h2 .count {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: var(--muted);
+    letter-spacing: 0.05em;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    padding: 2px 8px;
+    border-radius: 999px;
+  }
+
+  /* Cards */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    padding: var(--pad);
+    margin-bottom: 18px;
+  }
+
+  /* Stepper rows */
+  .field-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 0;
+  }
+  .field-row + .field-row { border-top: 1px dashed var(--border); }
+  .field-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--muted);
+  }
+  .field-label .desc {
+    display: block;
+    color: var(--chalk);
+    font-family: 'Outfit', sans-serif;
+    font-size: 14px;
+    letter-spacing: 0;
+    text-transform: none;
+    margin-top: 2px;
+  }
+  .field-label .hint {
+    display: block;
+    color: var(--turf);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    margin-top: 4px;
+  }
+
+  .stepper {
+    display: inline-flex;
+    align-items: center;
+    background: var(--bg);
+    border: 1px solid var(--border-strong);
+    border-radius: 999px;
+    overflow: hidden;
+  }
+  .stepper button {
+    appearance: none;
+    background: transparent;
+    color: var(--chalk);
+    border: 0;
+    width: 44px;
+    height: 44px;
+    font-size: 22px;
+    line-height: 1;
+    cursor: pointer;
+    font-family: 'JetBrains Mono', monospace;
+    transition: background 0.12s;
+  }
+  .stepper button:hover { background: var(--surface-2); }
+  .stepper button:active { background: var(--border); }
+  .stepper button:disabled { opacity: 0.3; cursor: not-allowed; }
+  .stepper .val {
+    min-width: 48px;
+    text-align: center;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 22px;
+    letter-spacing: 0.04em;
+    color: var(--chalk);
+  }
+
+  /* Match length pills */
+  .pills {
+    display: inline-flex;
+    background: var(--bg);
+    border: 1px solid var(--border-strong);
+    border-radius: 999px;
+    overflow: hidden;
+  }
+  .pills button {
+    appearance: none;
+    background: transparent;
+    color: var(--muted);
+    border: 0;
+    padding: 10px 16px;
+    height: 44px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s;
+  }
+  .pills button:hover { color: var(--chalk); }
+  .pills button.active {
+    background: var(--turf);
+    color: #0a0f0a;
+    font-weight: 700;
+  }
+
+  /* Squad rows */
+  .squad-row {
+    display: grid;
+    grid-template-columns: auto 1fr auto auto;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 0;
+    border-bottom: 1px dashed var(--border);
+  }
+  .squad-row:last-child { border-bottom: 0; padding-bottom: 0; }
+  .squad-row:first-child { padding-top: 0; }
+
+  .squad-swatch {
+    width: 14px;
+    height: 40px;
+    border-radius: 4px;
+    flex-shrink: 0;
+    background: var(--col, var(--turf));
+  }
+  .squad-swatch.bibs {
+    background-image:
+      repeating-linear-gradient(
+        45deg,
+        transparent 0,
+        transparent 5px,
+        rgba(0, 0, 0, 0.35) 5px,
+        rgba(0, 0, 0, 0.35) 8px
+      );
+    background-color: var(--col, var(--turf));
+  }
+  .squad-name {
+    appearance: none;
+    background: var(--bg);
+    color: var(--chalk);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--r-md);
+    padding: 10px 12px;
+    font-family: 'Outfit', sans-serif;
+    font-size: 15px;
+    font-weight: 500;
+    width: 100%;
+    min-width: 0;
+    transition: border-color 0.12s;
+  }
+  .squad-name:focus {
+    outline: 0;
+    border-color: var(--turf);
+  }
+
+  .bibs-toggle {
+    appearance: none;
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--border-strong);
+    border-radius: 999px;
+    padding: 6px 10px;
+    height: 36px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.12s;
+    white-space: nowrap;
+  }
+  .bibs-toggle.on {
+    background: var(--chalk);
+    color: var(--bg);
+    border-color: var(--chalk);
+    background-image:
+      repeating-linear-gradient(
+        45deg,
+        transparent 0,
+        transparent 4px,
+        rgba(0, 0, 0, 0.15) 4px,
+        rgba(0, 0, 0, 0.15) 7px
+      );
+  }
+  .bibs-toggle:hover { color: var(--chalk); }
+  .bibs-toggle.on:hover { color: var(--bg); }
+
+  /* Stats bar */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    overflow: hidden;
+    margin-bottom: 18px;
+  }
+  .stat {
+    background: var(--surface);
+    padding: 18px 12px;
+    text-align: center;
+  }
+  .stat .label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+  .stat .value {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(30px, 6vw, 44px);
+    line-height: 1;
+    color: var(--chalk);
+    letter-spacing: 0.02em;
+  }
+  .stat .unit {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.06em;
+    margin-left: 2px;
+  }
+  .stat.alert .value { color: var(--warn); }
+  .stat.alert .unit { color: var(--warn); }
+
+  /* Teams */
+  .teams-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 12px;
+  }
+  .team {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    padding: 14px 14px 14px 18px;
+    position: relative;
+    overflow: hidden;
+  }
+  .team::before {
+    content: "";
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 4px;
+    background: var(--accent, var(--turf));
+  }
+  .team.bibs::before {
+    background:
+      repeating-linear-gradient(
+        45deg,
+        transparent 0,
+        transparent 4px,
+        rgba(0, 0, 0, 0.4) 4px,
+        rgba(0, 0, 0, 0.4) 7px
+      ),
+      var(--accent, var(--turf));
+  }
+  .team.mixed::before {
+    background: linear-gradient(
+      to bottom,
+      var(--c1, var(--turf)),
+      var(--c2, var(--squad-b))
+    );
+  }
+  .team-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .team-name {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 20px;
+    letter-spacing: 0.04em;
+    color: var(--chalk);
+  }
+  .badge-group {
+    display: inline-flex;
+    gap: 4px;
+    flex-wrap: wrap;
+  }
+  .badge {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: var(--surface-2);
+    color: var(--muted);
+    border: 1px solid var(--border-strong);
+    white-space: nowrap;
+  }
+  .badge.bibs {
+    color: var(--chalk);
+    border-color: var(--chalk);
+    background-image:
+      repeating-linear-gradient(
+        45deg,
+        transparent 0,
+        transparent 3px,
+        rgba(245, 245, 244, 0.12) 3px,
+        rgba(245, 245, 244, 0.12) 5px
+      );
+  }
+  .badge.mixed { color: var(--turf); border-color: var(--turf-dim); }
+  .badge.short { color: var(--warn); border-color: var(--warn); }
+  .players {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .player {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: var(--col, var(--turf));
+    color: #0a0f0a;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    position: relative;
+  }
+  .player.bibs {
+    background-image:
+      repeating-linear-gradient(
+        45deg,
+        transparent 0,
+        transparent 3px,
+        rgba(0, 0, 0, 0.35) 3px,
+        rgba(0, 0, 0, 0.35) 5px
+      );
+    background-color: var(--col, var(--turf));
+  }
+
+  /* Rotators */
+  .rotators-card {
+    background: var(--surface);
+    border: 1px dashed var(--warn);
+    border-radius: var(--r-md);
+    padding: 14px 16px;
+  }
+  .rotator-row {
+    display: grid;
+    grid-template-columns: 90px 1fr;
+    align-items: center;
+    gap: 12px;
+    padding: 6px 0;
+  }
+  .rotator-row + .rotator-row { border-top: 1px dashed var(--border); }
+  .rotator-squad {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+  }
+
+  /* Notes */
+  .note {
+    background: rgba(249, 115, 22, 0.08);
+    border: 1px solid var(--warn);
+    border-radius: var(--r-md);
+    padding: 12px 14px;
+    margin-bottom: 18px;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+  .note.muted {
+    background: rgba(138, 149, 138, 0.06);
+    border-color: var(--border-strong);
+  }
+  .note .ico {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    padding-top: 1px;
+    color: var(--warn);
+  }
+  .note.muted .ico { color: var(--muted); }
+  .note .txt {
+    font-size: 14px;
+    color: var(--chalk);
+    flex: 1;
+  }
+  .note .txt strong { color: var(--warn); }
+  .note.muted .txt strong { color: var(--chalk); }
+
+  /* Section heading helper */
+  .section-eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    margin: 14px 0 8px;
+  }
+  .section-eyebrow.a { color: var(--squad-a); }
+  .section-eyebrow.b { color: var(--squad-b); }
+  .section-eyebrow.mix { color: var(--turf); }
+  .section-eyebrow.warn { color: var(--warn); }
+  .section-eyebrow .with-bibs {
+    color: var(--chalk);
+    margin-left: 8px;
+    border: 1px solid var(--chalk);
+    padding: 1px 5px;
+    border-radius: 3px;
+    background-image:
+      repeating-linear-gradient(
+        45deg,
+        transparent 0,
+        transparent 3px,
+        rgba(245, 245, 244, 0.12) 3px,
+        rgba(245, 245, 244, 0.12) 5px
+      );
+    font-size: 9px;
+  }
+
+  /* Schedule */
+  .round {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    padding: 14px;
+    margin-bottom: 12px;
+  }
+  .round-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px dashed var(--border);
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .round-num {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 22px;
+    letter-spacing: 0.05em;
+    color: var(--chalk);
+  }
+  .round-num .time {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--turf);
+    margin-left: 8px;
+    letter-spacing: 0.08em;
+  }
+  .round-resting {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .pitches {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 10px;
+  }
+  .pitch {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--r-sm);
+    padding: 10px 12px;
+    position: relative;
+  }
+  .pitch-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--turf);
+    margin-bottom: 6px;
+  }
+  .matchup {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .team-pill {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 16px;
+    letter-spacing: 0.04em;
+    color: var(--chalk);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .team-pill .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--col, var(--turf));
+    flex-shrink: 0;
+  }
+  .team-pill .dot.bibs {
+    background-image:
+      repeating-linear-gradient(
+        45deg,
+        transparent 0,
+        transparent 2px,
+        rgba(0, 0, 0, 0.5) 2px,
+        rgba(0, 0, 0, 0.5) 3px
+      );
+    background-color: var(--col, var(--turf));
+  }
+  .team-pill .dot.mixed {
+    background: linear-gradient(45deg, var(--c1, var(--turf)), var(--c2, var(--squad-b)));
+  }
+  .team-pill .bibs-mark {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8px;
+    letter-spacing: 0.12em;
+    color: var(--chalk);
+    border: 1px solid var(--chalk);
+    border-radius: 3px;
+    padding: 0 3px;
+    margin-left: 2px;
+    background-image:
+      repeating-linear-gradient(
+        45deg,
+        transparent 0,
+        transparent 2px,
+        rgba(245, 245, 244, 0.12) 2px,
+        rgba(245, 245, 244, 0.12) 4px
+      );
+  }
+  .vs {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+  }
+  .pitch .format-tag {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.12em;
+    color: var(--warn);
+    border: 1px solid var(--warn);
+    border-radius: 3px;
+    padding: 1px 4px;
+  }
+
+  /* Reference card */
+  .ref-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 12px;
+  }
+  .ref-item {
+    border-left: 2px solid var(--turf-dim);
+    padding: 4px 0 4px 12px;
+  }
+  .ref-item .k {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 2px;
+  }
+  .ref-item .v {
+    font-size: 14px;
+    color: var(--chalk);
+  }
+  .ref-card .src {
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    word-break: break-all;
+  }
+  .ref-card .src a { color: var(--turf); text-decoration: none; }
+  .ref-card .src a:hover { text-decoration: underline; }
+
+  /* Empty state */
+  .empty {
+    color: var(--muted);
+    font-style: italic;
+    text-align: center;
+    padding: 30px 10px;
+    font-size: 14px;
+  }
+
+  section { margin-bottom: 24px; }
+
+  @media (max-width: 560px) {
+    .stats { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 480px) {
+    .squad-row {
+      grid-template-columns: auto 1fr auto;
+      grid-template-areas:
+        "swatch name name"
+        "swatch stepper bibs";
+      row-gap: 8px;
+    }
+    .squad-row .squad-swatch { grid-area: swatch; height: 100%; min-height: 64px; align-self: stretch; }
+    .squad-row .squad-name { grid-area: name; }
+    .squad-row .stepper { grid-area: stepper; justify-self: start; }
+    .squad-row .bibs-toggle { grid-area: bibs; justify-self: end; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="hero">
+    <div class="eyebrow">FutureFit · U7 Session Planner</div>
+    <h1>3v3 <span class="accent">Match</span> Builder</h1>
+    <p class="subtitle">Two squads, an hour of football. Plan teams, bibs, pitches and a no-repeat round-robin — built for mixed-attendance, non-competitive sessions.</p>
+  </header>
+
+  <section>
+    <h2>Squads</h2>
+    <div class="card">
+      <div id="squadList"></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Session</h2>
+    <div class="card">
+      <div class="field-row">
+        <div class="field-label">Match length
+          <span class="desc">Per game · FA range 6–10 min</span>
+        </div>
+        <div class="pills" id="matchLenPills">
+          <button data-len="6">6m</button>
+          <button data-len="8" class="active">8m</button>
+          <button data-len="10">10m</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Overview</h2>
+    <div class="stats">
+      <div class="stat">
+        <div class="label">Players</div>
+        <div class="value" id="statPlayers">0</div>
+      </div>
+      <div class="stat">
+        <div class="label">Full teams</div>
+        <div class="value" id="statTeams">0</div>
+      </div>
+      <div class="stat">
+        <div class="label">Pitches</div>
+        <div class="value" id="statPitches">0</div>
+      </div>
+      <div class="stat" id="statTimeWrap">
+        <div class="label">Play time</div>
+        <div class="value"><span id="statTime">0</span><span class="unit">min</span></div>
+      </div>
+    </div>
+    <div id="noteArea"></div>
+  </section>
+
+  <section>
+    <h2>Teams <span class="count" id="teamsCount">0</span></h2>
+    <div id="teamsArea"></div>
+  </section>
+
+  <section>
+    <h2>Schedule <span class="count" id="roundsCount">0</span></h2>
+    <div id="scheduleArea"></div>
+    <div id="scheduleHint"></div>
+  </section>
+
+  <section>
+    <h2>FA FutureFit · Quick Ref</h2>
+    <div class="card ref-card">
+      <div class="ref-grid">
+        <div class="ref-item"><div class="k">Match length</div><div class="v">6–10 min per game</div></div>
+        <div class="ref-item"><div class="k">Playing time</div><div class="v">30–40 min per child</div></div>
+        <div class="ref-item"><div class="k">Pitch size</div><div class="v">15×10m (max 20×15m)</div></div>
+        <div class="ref-item"><div class="k">Goals</div><div class="v">4 × 2.5 ft</div></div>
+        <div class="ref-item"><div class="k">Ball</div><div class="v">Size 3</div></div>
+        <div class="ref-item"><div class="k">Layout</div><div class="v">Up to 4× 3v3 on one 5v5</div></div>
+        <div class="ref-item"><div class="k">Rules</div><div class="v">No GKs, no offside, no heading</div></div>
+        <div class="ref-item"><div class="k">Substitutes</div><div class="v">None — everyone plays</div></div>
+        <div class="ref-item"><div class="k">Format</div><div class="v">Carousel — rotate pitches each round</div></div>
+        <div class="ref-item"><div class="k">Restarts</div><div class="v">Pass or dribble in from sideline</div></div>
+        <div class="ref-item"><div class="k">After a goal</div><div class="v">Opponents retreat to own goal</div></div>
+        <div class="ref-item"><div class="k">Spirit</div><div class="v">Non-competitive · high-fives · RPS to start</div></div>
+      </div>
+      <div class="src">Source: <a href="https://futurefit.englandfootball.com/futurefit/a-closer-look-at-3v3/index.html" target="_blank" rel="noopener">futurefit.englandfootball.com</a></div>
+    </div>
+  </section>
+
+</div>
+
+<script>
+(() => {
+  'use strict';
+
+  const TEAM_SIZE = 3;
+  const SQUAD_COLORS = ['#84cc16', '#38bdf8'];
+
+  const state = {
+    matchLength: 8,
+    bibsSquadIdx: 0,
+    squads: [
+      { name: 'Home', count: 6 },
+      { name: 'Away', count: 6 },
+    ],
+  };
+
+  // ---- Session planning ------------------------------------------------
+  //
+  // RULE: every player plays on every pitch in every round. No one rests.
+  //
+  // Approach: split the combined headcount into P pitches where each pitch is
+  // a single match of 3v3 / 3v2 / 2v2 (FA-approved sizes). Pick the smallest
+  // P such that A + B players fit cleanly into P matches with team sizes in
+  // {2, 3}. Bibs side = squad A teams; no-bibs side = squad B teams. If the
+  // headcounts don't divide cleanly across all pitches as pure squads, mix
+  // the minimum number of players across sides — those players take a bib
+  // on/off to join the opposite side for that session.
+  //
+  // Returns { pitches: [{bibs: team, noBibs: team}], crossCount: number }
+  // where each team has { players: [squadIdx...], side: 'bibs'|'noBibs' }.
+
+  function planSession(squads) {
+    const A = squads[0].count;
+    const B = squads[1].count;
+    const T = A + B;
+    if (T < 4) return { pitches: [], crossCount: 0, error: T === 0 ? 'empty' : 'too-few' };
+
+    const minP = Math.max(1, Math.ceil(T / 6));
+    const maxP = Math.floor(T / 4);
+
+    // Phase 1 — search for a pure fit (no cross-squad players).
+    for (let P = minP; P <= maxP; P++) {
+      const configs = enumerateConfigs(P, T);
+      for (const cfg of configs) {
+        const pureX = pureFitX(cfg, A);
+        if (pureX !== null) {
+          return buildPlan(P, cfg, pureX, A, B);
+        }
+      }
+    }
+
+    // Phase 2 — no pure fit anywhere; find the plan that crosses the fewest
+    // players over (smallest P, then most 3v3, then min crossings).
+    let best = null;
+    for (let P = minP; P <= maxP; P++) {
+      const configs = enumerateConfigs(P, T);
+      for (const cfg of configs) {
+        for (let x = 0; x <= cfg.b; x++) {
+          const bibsCapacity = 3 * cfg.a + x + 2 * cfg.b + 2 * cfg.c;
+          const crosses = Math.abs(A - bibsCapacity);
+          const score = { P, neg3v3: -cfg.a, crosses };
+          if (!best || isBetter(score, best.score)) {
+            best = { score, plan: buildPlan(P, cfg, x, A, B) };
+          }
+        }
+      }
+      if (best && best.score.P === P) break; // can't improve P further once found
+    }
+    return best ? best.plan : { pitches: [], crossCount: 0, error: 'no-fit' };
+  }
+
+  function isBetter(a, b) {
+    if (a.P !== b.P) return a.P < b.P;
+    if (a.neg3v3 !== b.neg3v3) return a.neg3v3 < b.neg3v3;
+    return a.crosses < b.crosses;
+  }
+
+  // Enumerate (a, b, c) where a+b+c = P, 6a + 5b + 4c = T. a = # of 3v3 matches,
+  // b = # of 3v2 matches, c = # of 2v2 matches. Ordered by max-a, max-b.
+  function enumerateConfigs(P, T) {
+    const out = [];
+    for (let a = P; a >= 0; a--) {
+      for (let b = P - a; b >= 0; b--) {
+        const c = P - a - b;
+        if (c < 0) continue;
+        if (6 * a + 5 * b + 4 * c === T) out.push({ a, b, c });
+      }
+    }
+    return out;
+  }
+
+  // Given a config, find x ∈ [0, b] such that bibs side capacity == A. Returns
+  // null if no pure x exists.
+  function pureFitX({ a, b, c }, A) {
+    const baseBibs = 3 * a + 2 * b + 2 * c;
+    const x = A - baseBibs;
+    if (x >= 0 && x <= b) return x;
+    return null;
+  }
+
+  function buildPlan(P, { a, b, c }, x, A, B) {
+    // Decide team-size sequence on each side.
+    // Bibs side teams: a teams of 3 (from 3v3) + x teams of 3 (3v2 bigger) +
+    //   (b-x) teams of 2 (3v2 smaller) + c teams of 2 (2v2).
+    // No-bibs mirrors: a×3 + x×2 + (b-x)×3 + c×2.
+    const bibsSizes = [
+      ...Array(a).fill(3),
+      ...Array(x).fill(3),
+      ...Array(b - x).fill(2),
+      ...Array(c).fill(2),
+    ];
+    const noBibsSizes = [
+      ...Array(a).fill(3),
+      ...Array(x).fill(2),
+      ...Array(b - x).fill(3),
+      ...Array(c).fill(2),
+    ];
+
+    const bibsCapacity = bibsSizes.reduce((s, n) => s + n, 0);
+    const noBibsCapacity = noBibsSizes.reduce((s, n) => s + n, 0);
+
+    // Allocate A to bibs side first, overflow to no-bibs. Allocate B to
+    // no-bibs first, overflow to bibs.
+    let aOnBibs = Math.min(A, bibsCapacity);
+    let aOnNoBibs = A - aOnBibs;
+    let bOnBibs = bibsCapacity - aOnBibs;
+    let bOnNoBibs = B - bOnBibs;
+    // Sanity (over-fill on no-bibs would mean the algorithm misjudged).
+    if (bOnNoBibs > noBibsCapacity) {
+      bOnBibs += bOnNoBibs - noBibsCapacity;
+      bOnNoBibs = noBibsCapacity;
+    }
+
+    const crossOnNoBibs = aOnNoBibs; // squad-A players that took bibs off
+    const crossOnBibs = bOnBibs;     // squad-B players that put bibs on
+    const crossCount = crossOnNoBibs + crossOnBibs;
+
+    // Build teams by walking the size arrays. Use a "draw from pool" helper.
+    const bibsPool = makePool(aOnBibs, bOnBibs, 0); // prefer 0 (A) on bibs
+    const noBibsPool = makePool(aOnNoBibs, bOnNoBibs, 1); // prefer 1 (B) on no-bibs
+
+    const bibsTeams = bibsSizes.map((size, i) => makeTeam(bibsPool, size, 'bibs', i, P));
+    const noBibsTeams = noBibsSizes.map((size, i) => makeTeam(noBibsPool, size, 'noBibs', i, P));
+
+    // Build pitches as fixed pairings of bibsTeams[i] with noBibsTeams[i].
+    // The schedule rotates which no-bibs team lands on each pitch.
+    const pitches = bibsTeams.map((team, i) => ({
+      bibs: team,
+      noBibs: noBibsTeams[i],
+    }));
+
+    return { P, pitches, bibsTeams, noBibsTeams, crossCount };
+  }
+
+  function makePool(aCount, bCount, preferred) {
+    // Yields squad indices, preferred squad first.
+    const pool = [];
+    if (preferred === 0) {
+      for (let i = 0; i < aCount; i++) pool.push(0);
+      for (let i = 0; i < bCount; i++) pool.push(1);
+    } else {
+      for (let i = 0; i < bCount; i++) pool.push(1);
+      for (let i = 0; i < aCount; i++) pool.push(0);
+    }
+    return pool;
+  }
+
+  function makeTeam(pool, size, side, idx, P) {
+    const players = pool.splice(0, size);
+    const uniq = new Set(players);
+    const mixed = uniq.size > 1;
+    return { players, size, side, idx, mixed };
+  }
+
+  // ---- Schedule (rotation across pitches) ------------------------------
+  //
+  // P teams per side. Round r: pitch i hosts bibsTeams[i] vs noBibsTeams[(i+r) % P].
+  // Over P rounds, every bibs team plays every no-bibs team exactly once.
+
+  function buildSchedule(plan) {
+    const { P, bibsTeams, noBibsTeams } = plan;
+    if (P === 0) return [];
+    const rounds = [];
+    for (let r = 0; r < P; r++) {
+      const matches = [];
+      for (let i = 0; i < P; i++) {
+        matches.push([bibsTeams[i], noBibsTeams[(i + r) % P]]);
+      }
+      rounds.push(matches);
+    }
+    return rounds;
+  }
+
+  // ---- Rendering -------------------------------------------------------
+
+  const $ = (sel) => document.querySelector(sel);
+  function el(tag, props = {}, kids = []) {
+    const e = document.createElement(tag);
+    Object.entries(props).forEach(([k, v]) => {
+      if (v == null) return;
+      if (k === 'class') e.className = v;
+      else if (k === 'style') e.setAttribute('style', v);
+      else if (k.startsWith('on')) e.addEventListener(k.slice(2).toLowerCase(), v);
+      else if (k === 'html') e.innerHTML = v;
+      else e.setAttribute(k, v);
+    });
+    (Array.isArray(kids) ? kids : [kids]).forEach((c) => {
+      if (c == null) return;
+      e.appendChild(typeof c === 'string' ? document.createTextNode(c) : c);
+    });
+    return e;
+  }
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, (c) => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
+  }
+
+  function isBibsSquad(idx) {
+    return idx === state.bibsSquadIdx;
+  }
+
+  function renderSquads() {
+    const list = $('#squadList');
+    list.innerHTML = '';
+
+    state.squads.forEach((squad, idx) => {
+      const color = SQUAD_COLORS[idx];
+      const row = el('div', { class: 'squad-row' });
+
+      const swatch = el('div', {
+        class: `squad-swatch ${isBibsSquad(idx) ? 'bibs' : ''}`,
+        style: `--col: ${color}`,
+      });
+      row.appendChild(swatch);
+
+      const nameInput = el('input', {
+        class: 'squad-name',
+        type: 'text',
+        value: squad.name,
+        placeholder: 'Squad name',
+        maxlength: '24',
+      });
+      nameInput.addEventListener('input', (e) => {
+        squad.name = e.target.value;
+        renderOutputs();
+      });
+      row.appendChild(nameInput);
+
+      const stepper = el('div', { class: 'stepper' });
+      const minus = el('button', { 'data-step': '-1', 'aria-label': 'Decrease' }, '−');
+      const val = el('span', { class: 'val' }, String(squad.count));
+      const plus = el('button', { 'data-step': '1', 'aria-label': 'Increase' }, '+');
+      minus.addEventListener('click', () => {
+        if (squad.count > 0) { squad.count--; val.textContent = squad.count; renderOutputs(); }
+      });
+      plus.addEventListener('click', () => {
+        if (squad.count < 30) { squad.count++; val.textContent = squad.count; renderOutputs(); }
+      });
+      stepper.append(minus, val, plus);
+      row.appendChild(stepper);
+
+      const bibsBtn = el('button', {
+        class: `bibs-toggle ${isBibsSquad(idx) ? 'on' : ''}`,
+        'aria-pressed': isBibsSquad(idx) ? 'true' : 'false',
+      }, isBibsSquad(idx) ? 'BIBS' : 'NO BIBS');
+      bibsBtn.addEventListener('click', () => {
+        state.bibsSquadIdx = idx;
+        renderSquads();
+        renderOutputs();
+      });
+      row.appendChild(bibsBtn);
+
+      list.appendChild(row);
+    });
+  }
+
+  function teamLabel(team, sideIdx) {
+    // Label by side: "Bibs 1" / "No-Bibs 1" using the squad name on each side.
+    const aName = state.squads[0].name;
+    const bName = state.squads[1].name;
+    const label = team.side === 'bibs' ? aName : bName;
+    return `${label} ${sideIdx + 1}`;
+  }
+
+  function teamCard(team, sideIdx) {
+    const klass = `team ${team.mixed ? 'mixed' : ''} ${team.side === 'bibs' ? 'bibs' : ''}`.trim();
+    const accent = team.side === 'bibs' ? SQUAD_COLORS[0] : SQUAD_COLORS[1];
+    const c1 = SQUAD_COLORS[0];
+    const c2 = SQUAD_COLORS[1];
+    const style = team.mixed
+      ? `--c1: ${c1}; --c2: ${c2}`
+      : `--accent: ${accent}`;
+
+    const card = el('div', { class: klass, style });
+
+    const badges = el('div', { class: 'badge-group' });
+    if (team.side === 'bibs') {
+      badges.appendChild(el('div', { class: 'badge bibs' }, 'BIBS'));
+    }
+    if (team.mixed) {
+      badges.appendChild(el('div', { class: 'badge mixed' }, 'Mixed'));
+    }
+    if (team.size === 2) {
+      badges.appendChild(el('div', { class: 'badge short' }, `${team.size}-player`));
+    }
+
+    const head = el('div', { class: 'team-head' });
+    head.append(
+      el('div', { class: 'team-name' }, teamLabel(team, sideIdx)),
+      badges,
+    );
+    card.appendChild(head);
+
+    const playersEl = el('div', { class: 'players' });
+    team.players.forEach((squadIdx, i) => {
+      // Bib status reflects the SIDE, not the player's origin squad —
+      // a crossover player takes off / puts on a bib for this session.
+      const wearsBibs = team.side === 'bibs';
+      const pClass = wearsBibs ? 'player bibs' : 'player';
+      playersEl.appendChild(el('div', {
+        class: pClass,
+        style: `--col: ${SQUAD_COLORS[squadIdx]}`,
+        title: state.squads[squadIdx].name,
+      }, String(i + 1)));
+    });
+    card.appendChild(playersEl);
+    return card;
+  }
+
+  function renderTeams(plan) {
+    const area = $('#teamsArea');
+    area.innerHTML = '';
+    const totalTeams = plan.bibsTeams.length + plan.noBibsTeams.length;
+    $('#teamsCount').textContent = totalTeams;
+
+    if (totalTeams === 0) {
+      area.appendChild(el('div', { class: 'card empty' },
+        plan.error === 'too-few'
+          ? 'Need at least 4 players to form 2 teams.'
+          : 'Add some players to form teams.'));
+      return;
+    }
+
+    const aName = state.squads[0].name;
+    const bName = state.squads[1].name;
+
+    const sectionHeader = (klass, label, withBibs) => {
+      const eyebrow = el('div', { class: `section-eyebrow ${klass}` }, label);
+      if (withBibs) eyebrow.appendChild(el('span', { class: 'with-bibs' }, 'BIBS'));
+      area.appendChild(eyebrow);
+    };
+
+    sectionHeader('a', aName, true);
+    const bibsGrid = el('div', { class: 'teams-grid' });
+    plan.bibsTeams.forEach((t, i) => bibsGrid.appendChild(teamCard(t, i)));
+    area.appendChild(bibsGrid);
+
+    sectionHeader('b', bName, false);
+    const noBibsGrid = el('div', { class: 'teams-grid' });
+    plan.noBibsTeams.forEach((t, i) => noBibsGrid.appendChild(teamCard(t, i)));
+    area.appendChild(noBibsGrid);
+  }
+
+  function renderNote(plan) {
+    const area = $('#noteArea');
+    area.innerHTML = '';
+    if (plan.crossCount === 0 || plan.pitches.length === 0) return;
+
+    const aName = state.squads[0].name;
+    const bName = state.squads[1].name;
+
+    // Identify which way the crossing goes.
+    const aOnNoBibs = plan.noBibsTeams.reduce(
+      (s, t) => s + t.players.filter((p) => p === 0).length, 0);
+    const bOnBibs = plan.bibsTeams.reduce(
+      (s, t) => s + t.players.filter((p) => p === 1).length, 0);
+
+    const parts = [];
+    if (aOnNoBibs > 0) {
+      const noun = aOnNoBibs === 1 ? 'player' : 'players';
+      const verb = aOnNoBibs === 1 ? 'takes' : 'take';
+      parts.push(`<strong>${aOnNoBibs} ${noun}</strong> from <em>${escapeHtml(aName)}</em> ${verb} off their bibs and play on the no-bibs side`);
+    }
+    if (bOnBibs > 0) {
+      const noun = bOnBibs === 1 ? 'player' : 'players';
+      const verb = bOnBibs === 1 ? 'puts' : 'put';
+      parts.push(`<strong>${bOnBibs} ${noun}</strong> from <em>${escapeHtml(bName)}</em> ${verb} on bibs and play on the bibs side`);
+    }
+    const msg = parts.join(' · ') + ' so every player is on a team and on the pitch every round.';
+
+    area.appendChild(el('div', { class: 'note' }, [
+      el('div', { class: 'ico' }, 'MIX'),
+      el('div', { class: 'txt', html: msg }),
+    ]));
+  }
+
+  function teamPill(team, sideIdx) {
+    const pill = el('span', { class: 'team-pill' });
+    let dotClass = 'dot';
+    let dotStyle = '';
+    if (team.mixed) {
+      dotClass += ' mixed';
+      dotStyle = `--c1: ${SQUAD_COLORS[0]}; --c2: ${SQUAD_COLORS[1]}`;
+    } else {
+      const sqIdx = team.players[0];
+      dotClass += team.side === 'bibs' ? ' bibs' : '';
+      dotStyle = `--col: ${SQUAD_COLORS[sqIdx]}`;
+    }
+    pill.appendChild(el('span', { class: dotClass, style: dotStyle }));
+    pill.appendChild(document.createTextNode(teamLabel(team, sideIdx)));
+    if (team.side === 'bibs') {
+      pill.appendChild(el('span', { class: 'bibs-mark' }, 'BIBS'));
+    }
+    return pill;
+  }
+
+  function renderSchedule(plan, rounds) {
+    const area = $('#scheduleArea');
+    area.innerHTML = '';
+    $('#roundsCount').textContent = rounds.length;
+    const hintArea = $('#scheduleHint');
+    hintArea.innerHTML = '';
+
+    if (rounds.length === 0) {
+      area.appendChild(el('div', { class: 'card empty' },
+        'Schedule will appear once you have teams.'));
+      return;
+    }
+
+    rounds.forEach((round, rIdx) => {
+      const roundEl = el('div', { class: 'round' });
+      const head = el('div', { class: 'round-head' });
+      const totalElapsed = (rIdx + 1) * state.matchLength;
+      const numEl = el('div', { class: 'round-num' }, `Round ${rIdx + 1}`);
+      numEl.appendChild(el('span', { class: 'time' }, `· ${totalElapsed}m`));
+      head.appendChild(numEl);
+      roundEl.appendChild(head);
+
+      const pitchesEl = el('div', { class: 'pitches' });
+      round.forEach(([bibs, noBibs], pIdx) => {
+        const pitch = el('div', { class: 'pitch' });
+        // Find each team's stable side index for naming.
+        const bibsIdx = plan.bibsTeams.indexOf(bibs);
+        const noBibsIdx = plan.noBibsTeams.indexOf(noBibs);
+        const isShort = bibs.size === 2 || noBibs.size === 2;
+        if (isShort) {
+          const tag = `${bibs.size}v${noBibs.size}`;
+          pitch.appendChild(el('div', { class: 'format-tag' }, tag));
+        }
+        pitch.appendChild(el('div', { class: 'pitch-label' }, `Pitch ${pIdx + 1}`));
+        const matchup = el('div', { class: 'matchup' });
+        matchup.append(
+          teamPill(bibs, bibsIdx),
+          el('span', { class: 'vs' }, 'vs'),
+          teamPill(noBibs, noBibsIdx),
+        );
+        pitch.appendChild(matchup);
+        pitchesEl.appendChild(pitch);
+      });
+      roundEl.appendChild(pitchesEl);
+      area.appendChild(roundEl);
+    });
+
+    const playTime = rounds.length * state.matchLength;
+    if (playTime > 60) {
+      hintArea.appendChild(el('div', { class: 'note' }, [
+        el('div', { class: 'ico' }, 'OVERRUN'),
+        el('div', { class: 'txt', html:
+          `Schedule runs <strong>${playTime} min</strong> — longer than a 1-hour session. Shorten matches.`
+        }),
+      ]));
+    } else if (playTime > 0 && playTime < 45) {
+      hintArea.appendChild(el('div', { class: 'note muted' }, [
+        el('div', { class: 'ico' }, 'NOTE'),
+        el('div', { class: 'txt', html:
+          `Schedule is <strong>${playTime} min</strong>. Use remaining time for warm-up, drills or skills — every matchup is played exactly once.`
+        }),
+      ]));
+    }
+  }
+
+  function renderOutputs() {
+    const plan = planSession(state.squads);
+    const totalPlayers = state.squads.reduce((s, sq) => s + sq.count, 0);
+    const totalTeams = plan.bibsTeams ? plan.bibsTeams.length + plan.noBibsTeams.length : 0;
+
+    $('#statPlayers').textContent = totalPlayers;
+    $('#statTeams').textContent = totalTeams;
+    $('#statPitches').textContent = plan.P || 0;
+
+    renderNote(plan);
+    renderTeams(plan);
+
+    const rounds = buildSchedule(plan);
+    renderSchedule(plan, rounds);
+
+    const playTime = rounds.length * state.matchLength;
+    $('#statTime').textContent = playTime;
+    $('#statTimeWrap').classList.toggle('alert', playTime > 60);
+  }
+
+  function renderAll() {
+    renderSquads();
+    renderOutputs();
+  }
+
+  // ---- Bind controls ---------------------------------------------------
+
+  document.querySelectorAll('#matchLenPills button').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const len = parseInt(btn.dataset.len, 10);
+      state.matchLength = len;
+      document.querySelectorAll('#matchLenPills button').forEach((b) => {
+        b.classList.toggle('active', parseInt(b.dataset.len, 10) === len);
+      });
+      renderOutputs();
+    });
+  });
+
+  renderAll();
+})();
+</script>
+</body>
+</html>

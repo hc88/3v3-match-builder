@@ -839,10 +839,12 @@
   //   accepting cross-squad mixing on some pitches to enable it. Everyone
   //   still plays every round — the trade-off is bib-on/off, not rest.
   function planSession(squads, opts = {}) {
-    const A = squads[0].count;
-    const B = squads[1].count;
+    const bibsIdx = opts.bibsSquadIdx ?? 0;
+    const otherIdx = 1 - bibsIdx;
+    const A = squads[bibsIdx].count;
+    const B = squads[otherIdx].count;
     const T = A + B;
-    if (T < 4) return { pitches: [], crossCount: 0, error: T === 0 ? 'empty' : 'too-few' };
+    if (T < 4) return { pitches: [], bibsTeams: [], noBibsTeams: [], crossCount: 0, error: T === 0 ? 'empty' : 'too-few' };
 
     const minP = Math.max(1, Math.ceil(T / 6));
     const maxP = Math.floor(T / 4);
@@ -854,7 +856,7 @@
         for (const cfg of configs) {
           const pureX = pureFitX(cfg, A);
           if (pureX !== null) {
-            return buildPlan(P, cfg, pureX, A, B);
+            return buildPlan(P, cfg, pureX, A, B, bibsIdx, otherIdx);
           }
         }
       }
@@ -871,13 +873,13 @@
           const crosses = Math.abs(A - bibsCapacity);
           const score = { P, neg3v3: -cfg.a, crosses };
           if (!best || isBetter(score, best.score)) {
-            best = { score, plan: buildPlan(P, cfg, x, A, B) };
+            best = { score, plan: buildPlan(P, cfg, x, A, B, bibsIdx, otherIdx) };
           }
         }
       }
       if (best && best.score.P === P) break;
     }
-    return best ? best.plan : { pitches: [], crossCount: 0, error: 'no-fit' };
+    return best ? best.plan : { pitches: [], bibsTeams: [], noBibsTeams: [], crossCount: 0, error: 'no-fit' };
   }
 
   function isBetter(a, b) {
@@ -909,11 +911,7 @@
     return null;
   }
 
-  function buildPlan(P, { a, b, c }, x, A, B) {
-    // Decide team-size sequence on each side.
-    // Bibs side teams: a teams of 3 (from 3v3) + x teams of 3 (3v2 bigger) +
-    //   (b-x) teams of 2 (3v2 smaller) + c teams of 2 (2v2).
-    // No-bibs mirrors: a×3 + x×2 + (b-x)×3 + c×2.
+  function buildPlan(P, { a, b, c }, x, A, B, bibsIdx, otherIdx) {
     const bibsSizes = [
       ...Array(a).fill(3),
       ...Array(x).fill(3),
@@ -930,49 +928,36 @@
     const bibsCapacity = bibsSizes.reduce((s, n) => s + n, 0);
     const noBibsCapacity = noBibsSizes.reduce((s, n) => s + n, 0);
 
-    // Allocate A to bibs side first, overflow to no-bibs. Allocate B to
-    // no-bibs first, overflow to bibs.
+    // Allocate the bibs squad to the bibs side first; overflow to no-bibs.
     let aOnBibs = Math.min(A, bibsCapacity);
     let aOnNoBibs = A - aOnBibs;
     let bOnBibs = bibsCapacity - aOnBibs;
     let bOnNoBibs = B - bOnBibs;
-    // Sanity (over-fill on no-bibs would mean the algorithm misjudged).
     if (bOnNoBibs > noBibsCapacity) {
       bOnBibs += bOnNoBibs - noBibsCapacity;
       bOnNoBibs = noBibsCapacity;
     }
 
-    const crossOnNoBibs = aOnNoBibs; // squad-A players that took bibs off
-    const crossOnBibs = bOnBibs;     // squad-B players that put bibs on
-    const crossCount = crossOnNoBibs + crossOnBibs;
+    const crossCount = aOnNoBibs + bOnBibs;
 
-    // Build teams by walking the size arrays. Use a "draw from pool" helper.
-    const bibsPool = makePool(aOnBibs, bOnBibs, 0); // prefer 0 (A) on bibs
-    const noBibsPool = makePool(aOnNoBibs, bOnNoBibs, 1); // prefer 1 (B) on no-bibs
+    const bibsPool = makePool(aOnBibs, bibsIdx, bOnBibs, otherIdx);
+    const noBibsPool = makePool(bOnNoBibs, otherIdx, aOnNoBibs, bibsIdx);
 
     const bibsTeams = bibsSizes.map((size, i) => makeTeam(bibsPool, size, 'bibs', i, P));
     const noBibsTeams = noBibsSizes.map((size, i) => makeTeam(noBibsPool, size, 'noBibs', i, P));
 
-    // Build pitches as fixed pairings of bibsTeams[i] with noBibsTeams[i].
-    // The schedule rotates which no-bibs team lands on each pitch.
     const pitches = bibsTeams.map((team, i) => ({
       bibs: team,
       noBibs: noBibsTeams[i],
     }));
 
-    return { P, pitches, bibsTeams, noBibsTeams, crossCount };
+    return { P, pitches, bibsTeams, noBibsTeams, crossCount, bibsIdx, otherIdx };
   }
 
-  function makePool(aCount, bCount, preferred) {
-    // Yields squad indices, preferred squad first.
+  function makePool(primaryCount, primaryIdx, secondaryCount, secondaryIdx) {
     const pool = [];
-    if (preferred === 0) {
-      for (let i = 0; i < aCount; i++) pool.push(0);
-      for (let i = 0; i < bCount; i++) pool.push(1);
-    } else {
-      for (let i = 0; i < bCount; i++) pool.push(1);
-      for (let i = 0; i < aCount; i++) pool.push(0);
-    }
+    for (let i = 0; i < primaryCount; i++) pool.push(primaryIdx);
+    for (let i = 0; i < secondaryCount; i++) pool.push(secondaryIdx);
     return pool;
   }
 
@@ -1087,20 +1072,21 @@
   }
 
   function teamLabel(team, sideIdx) {
-    // Label by side: "Bibs 1" / "No-Bibs 1" using the squad name on each side.
-    const aName = state.squads[0].name;
-    const bName = state.squads[1].name;
-    const label = team.side === 'bibs' ? aName : bName;
+    const bibsIdx = state.bibsSquadIdx;
+    const otherIdx = 1 - bibsIdx;
+    const label = team.side === 'bibs'
+      ? state.squads[bibsIdx].name
+      : state.squads[otherIdx].name;
     return `${label} ${sideIdx + 1}`;
   }
 
   function teamCard(team, sideIdx) {
     const klass = `team ${team.mixed ? 'mixed' : ''} ${team.side === 'bibs' ? 'bibs' : ''}`.trim();
-    const accent = team.side === 'bibs' ? SQUAD_COLORS[0] : SQUAD_COLORS[1];
-    const c1 = SQUAD_COLORS[0];
-    const c2 = SQUAD_COLORS[1];
+    const bibsIdx = state.bibsSquadIdx;
+    const otherIdx = 1 - bibsIdx;
+    const accent = team.side === 'bibs' ? SQUAD_COLORS[bibsIdx] : SQUAD_COLORS[otherIdx];
     const style = team.mixed
-      ? `--c1: ${c1}; --c2: ${c2}`
+      ? `--c1: ${SQUAD_COLORS[bibsIdx]}; --c2: ${SQUAD_COLORS[otherIdx]}`
       : `--accent: ${accent}`;
 
     const card = el('div', { class: klass, style });
@@ -1153,8 +1139,12 @@
       return;
     }
 
-    const aName = state.squads[0].name;
-    const bName = state.squads[1].name;
+    const bibsIdx = state.bibsSquadIdx;
+    const otherIdx = 1 - bibsIdx;
+    const bibsName = state.squads[bibsIdx].name;
+    const otherName = state.squads[otherIdx].name;
+    const bibsKlass = bibsIdx === 0 ? 'a' : 'b';
+    const otherKlass = bibsIdx === 0 ? 'b' : 'a';
 
     const sectionHeader = (klass, label, withBibs) => {
       const eyebrow = el('div', { class: `section-eyebrow ${klass}` }, label);
@@ -1162,12 +1152,12 @@
       area.appendChild(eyebrow);
     };
 
-    sectionHeader('a', aName, true);
+    sectionHeader(bibsKlass, bibsName, true);
     const bibsGrid = el('div', { class: 'teams-grid' });
     plan.bibsTeams.forEach((t, i) => bibsGrid.appendChild(teamCard(t, i)));
     area.appendChild(bibsGrid);
 
-    sectionHeader('b', bName, false);
+    sectionHeader(otherKlass, otherName, false);
     const noBibsGrid = el('div', { class: 'teams-grid' });
     plan.noBibsTeams.forEach((t, i) => noBibsGrid.appendChild(teamCard(t, i)));
     area.appendChild(noBibsGrid);
@@ -1179,25 +1169,27 @@
     if (plan.pitches.length === 0) return;
     if (plan.crossCount === 0) return;
 
-    const aName = state.squads[0].name;
-    const bName = state.squads[1].name;
+    const bibsIdx = plan.bibsIdx ?? state.bibsSquadIdx;
+    const otherIdx = plan.otherIdx ?? (1 - bibsIdx);
+    const bibsName = state.squads[bibsIdx].name;
+    const otherName = state.squads[otherIdx].name;
 
-    // Identify which way the crossing goes.
-    const aOnNoBibs = plan.noBibsTeams.reduce(
-      (s, t) => s + t.players.filter((p) => p === 0).length, 0);
-    const bOnBibs = plan.bibsTeams.reduce(
-      (s, t) => s + t.players.filter((p) => p === 1).length, 0);
+    // Count crossings by where each player's origin squad ended up.
+    const bibsOnNoBibs = plan.noBibsTeams.reduce(
+      (s, t) => s + t.players.filter((p) => p === bibsIdx).length, 0);
+    const otherOnBibs = plan.bibsTeams.reduce(
+      (s, t) => s + t.players.filter((p) => p === otherIdx).length, 0);
 
     const parts = [];
-    if (aOnNoBibs > 0) {
-      const noun = aOnNoBibs === 1 ? 'player' : 'players';
-      const verb = aOnNoBibs === 1 ? 'takes' : 'take';
-      parts.push(`<strong>${aOnNoBibs} ${noun}</strong> from <em>${escapeHtml(aName)}</em> ${verb} off their bibs and play on the no-bibs side`);
+    if (bibsOnNoBibs > 0) {
+      const noun = bibsOnNoBibs === 1 ? 'player' : 'players';
+      const verb = bibsOnNoBibs === 1 ? 'takes' : 'take';
+      parts.push(`<strong>${bibsOnNoBibs} ${noun}</strong> from <em>${escapeHtml(bibsName)}</em> ${verb} off their bibs and play on the no-bibs side`);
     }
-    if (bOnBibs > 0) {
-      const noun = bOnBibs === 1 ? 'player' : 'players';
-      const verb = bOnBibs === 1 ? 'puts' : 'put';
-      parts.push(`<strong>${bOnBibs} ${noun}</strong> from <em>${escapeHtml(bName)}</em> ${verb} on bibs and play on the bibs side`);
+    if (otherOnBibs > 0) {
+      const noun = otherOnBibs === 1 ? 'player' : 'players';
+      const verb = otherOnBibs === 1 ? 'puts' : 'put';
+      parts.push(`<strong>${otherOnBibs} ${noun}</strong> from <em>${escapeHtml(otherName)}</em> ${verb} on bibs and play on the bibs side`);
     }
     const msg = parts.join(' · ') + ' so every player is on a team and on the pitch every round.';
 
@@ -1212,8 +1204,10 @@
     let dotClass = 'dot';
     let dotStyle = '';
     if (team.mixed) {
+      const bibsIdx = state.bibsSquadIdx;
+      const otherIdx = 1 - bibsIdx;
       dotClass += ' mixed';
-      dotStyle = `--c1: ${SQUAD_COLORS[0]}; --c2: ${SQUAD_COLORS[1]}`;
+      dotStyle = `--c1: ${SQUAD_COLORS[bibsIdx]}; --c2: ${SQUAD_COLORS[otherIdx]}`;
     } else {
       const sqIdx = team.players[0];
       dotClass += team.side === 'bibs' ? ' bibs' : '';
@@ -1293,7 +1287,10 @@
   }
 
   function renderOutputs() {
-    const plan = planSession(state.squads, { maxThrees: state.maxThrees });
+    const plan = planSession(state.squads, {
+      maxThrees: state.maxThrees,
+      bibsSquadIdx: state.bibsSquadIdx,
+    });
     const totalPlayers = state.squads.reduce((s, sq) => s + sq.count, 0);
     const totalTeams = plan.bibsTeams ? plan.bibsTeams.length + plan.noBibsTeams.length : 0;
 

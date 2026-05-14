@@ -460,29 +460,6 @@
     background-color: var(--col, var(--turf));
   }
 
-  /* Rotators */
-  .rotators-card {
-    background: var(--surface);
-    border: 1px dashed var(--warn);
-    border-radius: var(--r-md);
-    padding: 14px 16px;
-  }
-  .rotator-row {
-    display: grid;
-    grid-template-columns: 90px 1fr;
-    align-items: center;
-    gap: 12px;
-    padding: 6px 0;
-  }
-  .rotator-row + .rotator-row { border-top: 1px dashed var(--border); }
-  .rotator-squad {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-    color: var(--muted);
-  }
-
   /* Notes */
   .note {
     background: rgba(249, 115, 22, 0.08);
@@ -852,60 +829,16 @@
     ],
   };
 
-  // Form only 3-player teams; surplus players rotate as 4ths between matches.
-  // Used when the user opts to maximise full-size teams over keeping everyone
-  // on the pitch every round.
-  function planMaxThrees(squads) {
-    const A = squads[0].count;
-    const B = squads[1].count;
-    const T = A + B;
-    if (T < 6) return { P: 0, pitches: [], bibsTeams: [], noBibsTeams: [], crossCount: 0, rotatorsA: 0, rotatorsB: 0, error: 'too-few' };
-
-    let teamCount = Math.floor(T / 3);
-    if (teamCount % 2 !== 0) teamCount -= 1;
-    if (teamCount < 2) return { P: 0, pitches: [], bibsTeams: [], noBibsTeams: [], crossCount: 0, rotatorsA: 0, rotatorsB: 0, error: 'too-few' };
-
-    const P = teamCount / 2;
-    const sideCap = 3 * P;
-
-    let aOnBibs, aOnNoBibs, bOnBibs, bOnNoBibs, rotatorsA, rotatorsB;
-    if (A >= sideCap && B >= sideCap) {
-      aOnBibs = sideCap; aOnNoBibs = 0;
-      bOnNoBibs = sideCap; bOnBibs = 0;
-      rotatorsA = A - sideCap;
-      rotatorsB = B - sideCap;
-    } else if (A < sideCap) {
-      aOnBibs = A; aOnNoBibs = 0;
-      bOnBibs = sideCap - A; bOnNoBibs = sideCap;
-      rotatorsA = 0;
-      rotatorsB = B - bOnBibs - bOnNoBibs;
-    } else {
-      aOnBibs = sideCap; aOnNoBibs = sideCap - B;
-      bOnNoBibs = B; bOnBibs = 0;
-      rotatorsA = A - aOnBibs - aOnNoBibs;
-      rotatorsB = 0;
-    }
-
-    const bibsPool = makePool(aOnBibs, bOnBibs, 0);
-    const noBibsPool = makePool(aOnNoBibs, bOnNoBibs, 1);
-    const bibsTeams = Array(P).fill(0).map((_, i) => makeTeam(bibsPool, 3, 'bibs', i, P));
-    const noBibsTeams = Array(P).fill(0).map((_, i) => makeTeam(noBibsPool, 3, 'noBibs', i, P));
-
-    return {
-      P,
-      bibsTeams,
-      noBibsTeams,
-      pitches: bibsTeams.map((b, i) => ({ bibs: b, noBibs: noBibsTeams[i] })),
-      crossCount: aOnNoBibs + bOnBibs,
-      rotatorsA,
-      rotatorsB,
-    };
-  }
-
   // Pick the smallest pitch count P where A+B players fit into P matches sized
-  // 3v3 / 3v2 / 2v2. Prefer pure squad-vs-squad pairings; cross the fewest
-  // players over (bib on/off) when the counts don't divide pure.
-  function planSession(squads) {
+  // 3v3 / 3v2 / 2v2. Two modes share the same P (and the same total count of
+  // 3-player teams, which equals T - 4P at any valid P):
+  //
+  // - default: prefer pure squad-vs-squad sides; cross the fewest players
+  //   when counts don't divide cleanly. May surface 3v2 matches.
+  // - maxThrees: prefer the layout with the most 3v3 matches (max a),
+  //   accepting cross-squad mixing on some pitches to enable it. Everyone
+  //   still plays every round — the trade-off is bib-on/off, not rest.
+  function planSession(squads, opts = {}) {
     const A = squads[0].count;
     const B = squads[1].count;
     const T = A + B;
@@ -914,19 +847,21 @@
     const minP = Math.max(1, Math.ceil(T / 6));
     const maxP = Math.floor(T / 4);
 
-    // Phase 1 — search for a pure fit (no cross-squad players).
-    for (let P = minP; P <= maxP; P++) {
-      const configs = enumerateConfigs(P, T);
-      for (const cfg of configs) {
-        const pureX = pureFitX(cfg, A);
-        if (pureX !== null) {
-          return buildPlan(P, cfg, pureX, A, B);
+    if (!opts.maxThrees) {
+      // Phase 1 — search for a pure fit (no cross-squad players).
+      for (let P = minP; P <= maxP; P++) {
+        const configs = enumerateConfigs(P, T);
+        for (const cfg of configs) {
+          const pureX = pureFitX(cfg, A);
+          if (pureX !== null) {
+            return buildPlan(P, cfg, pureX, A, B);
+          }
         }
       }
     }
 
-    // Phase 2 — no pure fit anywhere; find the plan that crosses the fewest
-    // players over (smallest P, then most 3v3, then min crossings).
+    // Either maxThrees mode, or default fell through to mixing. Pick the
+    // best plan by (smallest P, most 3v3, fewest crosses).
     let best = null;
     for (let P = minP; P <= maxP; P++) {
       const configs = enumerateConfigs(P, T);
@@ -940,7 +875,7 @@
           }
         }
       }
-      if (best && best.score.P === P) break; // can't improve P further once found
+      if (best && best.score.P === P) break;
     }
     return best ? best.plan : { pitches: [], crossCount: 0, error: 'no-fit' };
   }
@@ -1236,63 +1171,16 @@
     const noBibsGrid = el('div', { class: 'teams-grid' });
     plan.noBibsTeams.forEach((t, i) => noBibsGrid.appendChild(teamCard(t, i)));
     area.appendChild(noBibsGrid);
-
-    const rotA = plan.rotatorsA || 0;
-    const rotB = plan.rotatorsB || 0;
-    if (rotA > 0 || rotB > 0) {
-      area.appendChild(el('div', { class: 'section-eyebrow warn' }, 'Rotators'));
-      const card = el('div', { class: 'rotators-card' });
-      const addRow = (squadIdx, count) => {
-        if (count === 0) return;
-        const row = el('div', { class: 'rotator-row' });
-        row.appendChild(el('div', { class: 'rotator-squad' }, state.squads[squadIdx].name));
-        const chips = el('div', { class: 'players' });
-        for (let i = 0; i < count; i++) {
-          chips.appendChild(el('div', {
-            class: 'player',
-            style: `--col: ${SQUAD_COLORS[squadIdx]}`,
-            title: state.squads[squadIdx].name,
-          }, String(i + 1)));
-        }
-        row.appendChild(chips);
-        card.appendChild(row);
-      };
-      addRow(0, rotA);
-      addRow(1, rotB);
-      area.appendChild(card);
-    }
   }
 
   function renderNote(plan) {
     const area = $('#noteArea');
     area.innerHTML = '';
     if (plan.pitches.length === 0) return;
+    if (plan.crossCount === 0) return;
 
     const aName = state.squads[0].name;
     const bName = state.squads[1].name;
-
-    const rotA = plan.rotatorsA || 0;
-    const rotB = plan.rotatorsB || 0;
-
-    if (rotA > 0 || rotB > 0) {
-      const parts = [];
-      if (rotA > 0) {
-        const noun = rotA === 1 ? 'player' : 'players';
-        parts.push(`<strong>${rotA} ${noun}</strong> from <em>${escapeHtml(aName)}</em>`);
-      }
-      if (rotB > 0) {
-        const noun = rotB === 1 ? 'player' : 'players';
-        parts.push(`<strong>${rotB} ${noun}</strong> from <em>${escapeHtml(bName)}</em>`);
-      }
-      const msg = `${parts.join(' and ')} rotate as 4ths between matches (FA carousel). Swap one in each round so everyone gets game time.`;
-      area.appendChild(el('div', { class: 'note' }, [
-        el('div', { class: 'ico' }, 'ROTATE'),
-        el('div', { class: 'txt', html: msg }),
-      ]));
-      return;
-    }
-
-    if (plan.crossCount === 0) return;
 
     // Identify which way the crossing goes.
     const aOnNoBibs = plan.noBibsTeams.reduce(
@@ -1405,7 +1293,7 @@
   }
 
   function renderOutputs() {
-    const plan = state.maxThrees ? planMaxThrees(state.squads) : planSession(state.squads);
+    const plan = planSession(state.squads, { maxThrees: state.maxThrees });
     const totalPlayers = state.squads.reduce((s, sq) => s + sq.count, 0);
     const totalTeams = plan.bibsTeams ? plan.bibsTeams.length + plan.noBibsTeams.length : 0;
 

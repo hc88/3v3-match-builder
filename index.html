@@ -744,11 +744,11 @@
     <div class="card">
       <div class="field-row">
         <div class="field-label">Team format
-          <span class="desc">Mix squads for full 3v3 matches</span>
+          <span class="desc">Pure keeps squads together · Mix blends them evenly</span>
         </div>
         <div class="pills" id="formatPills">
-          <button data-format="all-play" class="active">Pure</button>
-          <button data-format="max-threes">Mix</button>
+          <button data-format="pure" class="active">Pure</button>
+          <button data-format="blend">Mix</button>
         </div>
       </div>
       <div class="field-row">
@@ -831,7 +831,7 @@
   const state = {
     matchLength: 8,
     bibsSquadIdx: 0,
-    maxThrees: false,
+    blend: false,
     squads: [
       { name: 'Home', count: 6 },
       { name: 'Away', count: 6 },
@@ -839,14 +839,18 @@
   };
 
   // Pick the smallest pitch count P where A+B players fit into P matches sized
-  // 3v3 / 3v2 / 2v2. Two modes share the same P (and the same total count of
-  // 3-player teams, which equals T - 4P at any valid P):
+  // 3v3 / 3v2 / 2v2, then the layout with the most 3v3 matches. The number of
+  // 3-player teams is fixed at T - 4P for any valid P, so both modes share the
+  // same layout and differ only in who fills each team:
   //
-  // - default: prefer pure squad-vs-squad sides; cross the fewest players
-  //   when counts don't divide cleanly. May surface 3v2 matches.
-  // - maxThrees: prefer the layout with the most 3v3 matches (max a),
-  //   accepting cross-squad mixing on some pitches to enable it. Everyone
-  //   still plays every round — the trade-off is bib-on/off, not rest.
+  // - Pure: squads stay on their own side of the bibs line; the fewest
+  //   players possible cross over to complete the layout, and the crossover
+  //   rotates each round.
+  // - Mix (blend): every team is filled with as even a split of the two
+  //   squads as possible, so children play with and against the other squad.
+  //
+  // Everyone plays every round in both modes — the trade-off is only who
+  // wears a bib.
   function planSession(squads, opts = {}) {
     const bibsIdx = opts.bibsSquadIdx ?? 0;
     const otherIdx = 1 - bibsIdx;
@@ -858,21 +862,7 @@
     const minP = Math.max(1, Math.ceil(T / 6));
     const maxP = Math.floor(T / 4);
 
-    if (!opts.maxThrees) {
-      // Phase 1 — search for a pure fit (no cross-squad players).
-      for (let P = minP; P <= maxP; P++) {
-        const configs = enumerateConfigs(P, T);
-        for (const cfg of configs) {
-          const pureX = pureFitX(cfg, A);
-          if (pureX !== null) {
-            return buildPlan(P, cfg, pureX, A, B, bibsIdx, otherIdx);
-          }
-        }
-      }
-    }
-
-    // Either maxThrees mode, or default fell through to mixing. Pick the
-    // best plan by (smallest P, most 3v3, fewest crosses).
+    // Pick the best plan by (smallest P, most 3v3, fewest crosses).
     let best = null;
     for (let P = minP; P <= maxP; P++) {
       const configs = enumerateConfigs(P, T);
@@ -882,7 +872,7 @@
           const crosses = Math.abs(A - bibsCapacity);
           const score = { P, neg3v3: -cfg.a, crosses };
           if (!best || isBetter(score, best.score)) {
-            best = { score, plan: buildPlan(P, cfg, x, A, B, bibsIdx, otherIdx) };
+            best = { score, plan: buildPlan(P, cfg, x, A, B, bibsIdx, otherIdx, opts.blend) };
           }
         }
       }
@@ -911,16 +901,7 @@
     return out;
   }
 
-  // Given a config, find x ∈ [0, b] such that bibs side capacity == A. Returns
-  // null if no pure x exists.
-  function pureFitX({ a, b, c }, A) {
-    const baseBibs = 3 * a + 2 * b + 2 * c;
-    const x = A - baseBibs;
-    if (x >= 0 && x <= b) return x;
-    return null;
-  }
-
-  function buildPlan(P, { a, b, c }, x, A, B, bibsIdx, otherIdx) {
+  function buildPlan(P, { a, b, c }, x, A, B, bibsIdx, otherIdx, blend) {
     const bibsSizes = [
       ...Array(a).fill(3),
       ...Array(x).fill(3),
@@ -933,6 +914,8 @@
       ...Array(b - x).fill(3),
       ...Array(c).fill(2),
     ];
+
+    if (blend) return buildBlendPlan(P, bibsSizes, noBibsSizes, A, B, bibsIdx, otherIdx);
 
     const bibsCapacity = bibsSizes.reduce((s, n) => s + n, 0);
     const noBibsCapacity = noBibsSizes.reduce((s, n) => s + n, 0);
@@ -969,6 +952,39 @@
     ].filter((c) => c.count > 0);
 
     return { P, pitches, bibsTeams, noBibsTeams, crossCount, crossovers, bibsIdx, otherIdx };
+  }
+
+  // Blend: deal both squads across every team so each team's split mirrors
+  // the squads' overall ratio as closely as its size allows. Teams are filled
+  // pitch by pitch (bibs, then no-bibs) so the two sides stay balanced too.
+  function buildBlendPlan(P, bibsSizes, noBibsSizes, A, B, bibsIdx, otherIdx) {
+    let remA = A;
+    let remB = B;
+    let nextA = 1;
+    let nextB = 1;
+    const fill = (size, side, idx) => {
+      const share = remA + remB > 0 ? remA / (remA + remB) : 0;
+      let takeA = Math.round(size * share);
+      takeA = Math.max(takeA, size - remB);
+      takeA = Math.min(takeA, remA, size);
+      const takeB = size - takeA;
+      const players = [];
+      for (let i = 0; i < takeA; i++) players.push({ squad: bibsIdx, num: nextA++ });
+      for (let i = 0; i < takeB; i++) players.push({ squad: otherIdx, num: nextB++ });
+      remA -= takeA;
+      remB -= takeB;
+      const mixed = takeA > 0 && takeB > 0;
+      return { players, size, side, idx, mixed };
+    };
+
+    const bibsTeams = [];
+    const noBibsTeams = [];
+    for (let i = 0; i < P; i++) {
+      bibsTeams.push(fill(bibsSizes[i], 'bibs', i));
+      noBibsTeams.push(fill(noBibsSizes[i], 'noBibs', i));
+    }
+    const pitches = bibsTeams.map((team, i) => ({ bibs: team, noBibs: noBibsTeams[i] }));
+    return { P, pitches, bibsTeams, noBibsTeams, crossCount: 0, crossovers: [], blend: true, bibsIdx, otherIdx };
   }
 
   function makePool(primaryCount, primaryIdx, primaryStart, secondaryCount, secondaryIdx, secondaryStart) {
@@ -1097,13 +1113,13 @@
     });
   }
 
-  function teamLabel(team, sideIdx) {
+  function sideName(side) {
+    if (state.blend) return side === 'bibs' ? 'Bibs' : 'No bibs';
     const bibsIdx = state.bibsSquadIdx;
-    const otherIdx = 1 - bibsIdx;
-    const label = team.side === 'bibs'
-      ? state.squads[bibsIdx].name
-      : state.squads[otherIdx].name;
-    return `${label} ${sideIdx + 1}`;
+    return side === 'bibs' ? state.squads[bibsIdx].name : state.squads[1 - bibsIdx].name;
+  }
+  function teamLabel(team, sideIdx) {
+    return `${sideName(team.side)} ${sideIdx + 1}`;
   }
 
   function teamCard(team, sideIdx) {
@@ -1167,8 +1183,8 @@
 
     const bibsIdx = state.bibsSquadIdx;
     const otherIdx = 1 - bibsIdx;
-    const bibsName = state.squads[bibsIdx].name;
-    const otherName = state.squads[otherIdx].name;
+    const bibsName = sideName('bibs');
+    const otherName = sideName('noBibs');
     const bibsKlass = bibsIdx === 0 ? 'a' : 'b';
     const otherKlass = bibsIdx === 0 ? 'b' : 'a';
 
@@ -1178,7 +1194,7 @@
       area.appendChild(eyebrow);
     };
 
-    sectionHeader(bibsKlass, bibsName, true);
+    sectionHeader(bibsKlass, bibsName, !state.blend);
     const bibsGrid = el('div', { class: 'teams-grid' });
     plan.bibsTeams.forEach((t, i) => bibsGrid.appendChild(teamCard(t, i)));
     area.appendChild(bibsGrid);
@@ -1193,6 +1209,17 @@
     const area = $('#noteArea');
     area.innerHTML = '';
     if (plan.pitches.length === 0) return;
+    if (plan.blend) {
+      const a = escapeHtml(state.squads[plan.bibsIdx].name);
+      const b = escapeHtml(state.squads[plan.otherIdx].name);
+      area.appendChild(el('div', { class: 'note muted' }, [
+        el('div', { class: 'ico' }, 'MIX'),
+        el('div', { class: 'txt', html:
+          `Every team blends <em>${a}</em> and <em>${b}</em> as evenly as the numbers allow. The bibs side wears bibs whichever squad they came from.`
+        }),
+      ]));
+      return;
+    }
     if (plan.crossCount === 0) return;
 
     const bibsIdx = plan.bibsIdx ?? state.bibsSquadIdx;
@@ -1326,7 +1353,7 @@
 
   function renderOutputs() {
     const plan = planSession(state.squads, {
-      maxThrees: state.maxThrees,
+      blend: state.blend,
       bibsSquadIdx: state.bibsSquadIdx,
     });
     const totalPlayers = state.squads.reduce((s, sq) => s + sq.count, 0);
@@ -1367,7 +1394,7 @@
 
   document.querySelectorAll('#formatPills button').forEach((btn) => {
     btn.addEventListener('click', () => {
-      state.maxThrees = btn.dataset.format === 'max-threes';
+      state.blend = btn.dataset.format === 'blend';
       document.querySelectorAll('#formatPills button').forEach((b) => {
         b.classList.toggle('active', b.dataset.format === btn.dataset.format);
       });

@@ -735,6 +735,15 @@
     <h2>Session</h2>
     <div class="card">
       <div class="field-row">
+        <div class="field-label">Team format
+          <span class="desc">Mix squads for full 3v3 matches</span>
+        </div>
+        <div class="pills" id="formatPills">
+          <button data-format="all-play" class="active">Pure</button>
+          <button data-format="max-threes">Mix</button>
+        </div>
+      </div>
+      <div class="field-row">
         <div class="field-label">Match length
           <span class="desc">Per game · FA range 6–10 min</span>
         </div>
@@ -814,6 +823,7 @@
   const state = {
     matchLength: 8,
     bibsSquadIdx: 0,
+    maxThrees: false,
     squads: [
       { name: 'Home', count: 6 },
       { name: 'Away', count: 6 },
@@ -821,10 +831,14 @@
   };
 
   // Pick the smallest pitch count P where A+B players fit into P matches sized
-  // 3v3 / 3v2 / 2v2. The number of 3-player teams is fixed at T - 4P for any
-  // valid P, so the planner maximises full 3v3 matches instead, crossing the
-  // fewest players between squads to get there. Everyone still plays every
-  // round — a crossover only means a bib on or off, never a rest.
+  // 3v3 / 3v2 / 2v2. Two modes share the same P (and the same total count of
+  // 3-player teams, which equals T - 4P at any valid P):
+  //
+  // - default: prefer pure squad-vs-squad sides; cross the fewest players
+  //   when counts don't divide cleanly. May surface 3v2 matches.
+  // - maxThrees: prefer the layout with the most 3v3 matches (max a),
+  //   accepting cross-squad mixing on some pitches to enable it. Everyone
+  //   still plays every round — the trade-off is bib-on/off, not rest.
   function planSession(squads, opts = {}) {
     const bibsIdx = opts.bibsSquadIdx ?? 0;
     const otherIdx = 1 - bibsIdx;
@@ -836,7 +850,21 @@
     const minP = Math.max(1, Math.ceil(T / 6));
     const maxP = Math.floor(T / 4);
 
-    // Pick the best plan by (smallest P, most 3v3, fewest crosses).
+    if (!opts.maxThrees) {
+      // Phase 1 — search for a pure fit (no cross-squad players).
+      for (let P = minP; P <= maxP; P++) {
+        const configs = enumerateConfigs(P, T);
+        for (const cfg of configs) {
+          const pureX = pureFitX(cfg, A);
+          if (pureX !== null) {
+            return buildPlan(P, cfg, pureX, A, B, bibsIdx, otherIdx);
+          }
+        }
+      }
+    }
+
+    // Either maxThrees mode, or default fell through to mixing. Pick the
+    // best plan by (smallest P, most 3v3, fewest crosses).
     let best = null;
     for (let P = minP; P <= maxP; P++) {
       const configs = enumerateConfigs(P, T);
@@ -873,6 +901,15 @@
       }
     }
     return out;
+  }
+
+  // Given a config, find x ∈ [0, b] such that bibs side capacity == A. Returns
+  // null if no pure x exists.
+  function pureFitX({ a, b, c }, A) {
+    const baseBibs = 3 * a + 2 * b + 2 * c;
+    const x = A - baseBibs;
+    if (x >= 0 && x <= b) return x;
+    return null;
   }
 
   function buildPlan(P, { a, b, c }, x, A, B, bibsIdx, otherIdx) {
@@ -1252,6 +1289,7 @@
 
   function renderOutputs() {
     const plan = planSession(state.squads, {
+      maxThrees: state.maxThrees,
       bibsSquadIdx: state.bibsSquadIdx,
     });
     const totalPlayers = state.squads.reduce((s, sq) => s + sq.count, 0);
@@ -1285,6 +1323,16 @@
       state.matchLength = len;
       document.querySelectorAll('#matchLenPills button').forEach((b) => {
         b.classList.toggle('active', parseInt(b.dataset.len, 10) === len);
+      });
+      renderOutputs();
+    });
+  });
+
+  document.querySelectorAll('#formatPills button').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      state.maxThrees = btn.dataset.format === 'max-threes';
+      document.querySelectorAll('#formatPills button').forEach((b) => {
+        b.classList.toggle('active', b.dataset.format === btn.dataset.format);
       });
       renderOutputs();
     });

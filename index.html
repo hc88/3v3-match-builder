@@ -231,7 +231,36 @@
     border-radius: 4px;
     flex-shrink: 0;
     background: var(--col, var(--turf));
+    position: relative;
+    cursor: pointer;
+    display: block;
   }
+  .squad-swatch:hover { outline: 2px solid var(--border-strong); outline-offset: 2px; }
+  .squad-swatch input[type="color"] {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    border: 0;
+    padding: 0;
+    cursor: pointer;
+  }
+  .reset-btn {
+    appearance: none;
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--border-strong);
+    border-radius: 999px;
+    padding: 0 16px;
+    height: 44px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    cursor: pointer;
+    transition: color 0.12s, border-color 0.12s;
+  }
+  .reset-btn:hover { color: var(--chalk); border-color: var(--chalk); }
   .squad-swatch.bibs {
     background-image:
       repeating-linear-gradient(
@@ -720,7 +749,7 @@
     body { background: #fff; background-image: none; color: #111; }
     .wrap { max-width: none; padding: 0; }
     header.hero { margin-bottom: 12px; padding: 0 0 8px; }
-    .subtitle, .stepper, .pills, .bibs-toggle, .src { display: none !important; }
+    .subtitle, .stepper, .pills, .bibs-toggle, .src, .reset-btn { display: none !important; }
     section:has(#squadList), section:has(#matchLenPills), section:has(.ref-card) { display: none; }
     .card { padding: 10px; margin-bottom: 10px; }
     .team, .round, .stat { break-inside: avoid; }
@@ -775,6 +804,12 @@
           <button data-cycles="2">2</button>
           <button data-cycles="3">3</button>
         </div>
+      </div>
+      <div class="field-row">
+        <div class="field-label">Reset
+          <span class="desc">Back to Home / Away, 6 each, default colours</span>
+        </div>
+        <button class="reset-btn" id="resetBtn" type="button">Reset to defaults</button>
       </div>
     </div>
   </section>
@@ -843,18 +878,32 @@
 (() => {
   'use strict';
 
-  const SQUAD_COLORS = ['#fdbc16', '#6b8efe'];
+  const DEFAULT_COLORS = ['#fdbc16', '#6b8efe'];
 
-  const state = {
-    matchLength: 8,
-    cycles: 1,
-    bibsSquadIdx: 0,
-    blend: false,
-    squads: [
-      { name: 'Home', count: 6 },
-      { name: 'Away', count: 6 },
-    ],
-  };
+  function defaultState() {
+    return {
+      matchLength: 8,
+      cycles: 1,
+      bibsSquadIdx: 0,
+      blend: false,
+      squads: [
+        { name: 'Home', count: 6, color: DEFAULT_COLORS[0] },
+        { name: 'Away', count: 6, color: DEFAULT_COLORS[1] },
+      ],
+    };
+  }
+
+  const state = defaultState();
+
+  function squadColor(idx) {
+    return state.squads[idx].color;
+  }
+  // Keep the CSS variables (used by section eyebrows and mixed gradients) in
+  // step with the chosen squad colours.
+  function applyColors() {
+    document.documentElement.style.setProperty('--squad-a', squadColor(0));
+    document.documentElement.style.setProperty('--squad-b', squadColor(1));
+  }
 
   // Pick the smallest pitch count P where A+B players fit into P matches sized
   // 3v3 / 3v2 / 2v2, then the layout with the most 3v3 matches. The number of
@@ -1090,13 +1139,22 @@
     list.innerHTML = '';
 
     state.squads.forEach((squad, idx) => {
-      const color = SQUAD_COLORS[idx];
+      const color = squadColor(idx);
       const row = el('div', { class: 'squad-row' });
 
-      const swatch = el('div', {
+      const swatch = el('label', {
         class: `squad-swatch ${isBibsSquad(idx) ? 'bibs' : ''}`,
         style: `--col: ${color}`,
+        title: 'Change colour',
       });
+      const picker = el('input', { type: 'color', value: color, 'aria-label': `${squad.name} colour` });
+      picker.addEventListener('input', (e) => {
+        squad.color = e.target.value;
+        swatch.style.setProperty('--col', squad.color);
+        applyColors();
+        renderOutputs();
+      });
+      swatch.appendChild(picker);
       row.appendChild(swatch);
 
       const nameInput = el('input', {
@@ -1154,9 +1212,9 @@
     const klass = `team ${team.mixed ? 'mixed' : ''} ${team.side === 'bibs' ? 'bibs' : ''}`.trim();
     const bibsIdx = state.bibsSquadIdx;
     const otherIdx = 1 - bibsIdx;
-    const accent = team.side === 'bibs' ? SQUAD_COLORS[bibsIdx] : SQUAD_COLORS[otherIdx];
+    const accent = team.side === 'bibs' ? squadColor(bibsIdx) : squadColor(otherIdx);
     const style = team.mixed
-      ? `--c1: ${SQUAD_COLORS[bibsIdx]}; --c2: ${SQUAD_COLORS[otherIdx]}`
+      ? `--c1: ${squadColor(bibsIdx)}; --c2: ${squadColor(otherIdx)}`
       : `--accent: ${accent}`;
 
     const card = el('div', { class: klass, style });
@@ -1187,7 +1245,7 @@
       const pClass = wearsBibs ? 'player bibs' : 'player';
       playersEl.appendChild(el('div', {
         class: pClass,
-        style: `--col: ${SQUAD_COLORS[p.squad]}`,
+        style: `--col: ${squadColor(p.squad)}`,
         title: `${state.squads[p.squad].name} #${p.num}`,
       }, String(p.num)));
     });
@@ -1301,11 +1359,11 @@
       const bibsIdx = state.bibsSquadIdx;
       const otherIdx = 1 - bibsIdx;
       dotClass += ' mixed';
-      dotStyle = `--c1: ${SQUAD_COLORS[bibsIdx]}; --c2: ${SQUAD_COLORS[otherIdx]}`;
+      dotStyle = `--c1: ${squadColor(bibsIdx)}; --c2: ${squadColor(otherIdx)}`;
     } else {
       const sqIdx = team.players[0].squad;
       dotClass += team.side === 'bibs' ? ' bibs' : '';
-      dotStyle = `--col: ${SQUAD_COLORS[sqIdx]}`;
+      dotStyle = `--col: ${squadColor(sqIdx)}`;
     }
     pill.appendChild(el('span', { class: dotClass, style: dotStyle }));
     pill.appendChild(document.createTextNode(teamLabel(team, sideIdx)));
@@ -1438,6 +1496,7 @@
         saved.squads.forEach((sq, i) => {
           if (typeof sq.name === 'string') state.squads[i].name = sq.name.slice(0, 24);
           if (Number.isInteger(sq.count) && sq.count >= 0 && sq.count <= 30) state.squads[i].count = sq.count;
+          if (typeof sq.color === 'string' && /^#[0-9a-f]{6}$/i.test(sq.color)) state.squads[i].color = sq.color;
         });
       }
     } catch (e) { /* ignore bad or missing data */ }
@@ -1488,7 +1547,16 @@
     });
   });
 
+  $('#resetBtn').addEventListener('click', () => {
+    try { localStorage.removeItem(STORAGE_KEY); } catch (e) { /* ignore */ }
+    Object.assign(state, defaultState());
+    applyColors();
+    syncPills();
+    renderAll();
+  });
+
   loadState();
+  applyColors();
   syncPills();
   renderAll();
 })();

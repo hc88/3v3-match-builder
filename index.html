@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <meta name="theme-color" content="#0a0f0a" />
-<title>3v3 Match Builder — U7 Session Planner</title>
+<title>3v3 Match Builder - U7 Session Planner</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
@@ -729,7 +729,7 @@
   <header class="hero">
     <div class="eyebrow">U7 Session Planner</div>
     <h1>3v3 <span class="accent">Match</span> Builder</h1>
-    <p class="subtitle">Two squads, an hour of football. Plan teams, bibs, pitches and a no-repeat round-robin — built for mixed-attendance, non-competitive sessions.</p>
+    <p class="subtitle">Two squads, an hour of football. Plan teams, bibs, pitches and a no-repeat round-robin, built for mixed-attendance, non-competitive sessions.</p>
   </header>
 
   <section>
@@ -810,8 +810,8 @@
         <div class="ref-item"><div class="k">Layout</div><div class="v">Up to 4× 3v3 on one 5v5</div></div>
         <div class="ref-item"><div class="k">Rules</div><div class="v">No GKs, no offside, no heading</div></div>
         <div class="ref-item"><div class="k">Scoring</div><div class="v">Must cross the halfway line before shooting</div></div>
-        <div class="ref-item"><div class="k">Substitutes</div><div class="v">None — everyone plays</div></div>
-        <div class="ref-item"><div class="k">Format</div><div class="v">Carousel — rotate pitches each round</div></div>
+        <div class="ref-item"><div class="k">Substitutes</div><div class="v">None. Everyone plays</div></div>
+        <div class="ref-item"><div class="k">Format</div><div class="v">Carousel: rotate pitches each round</div></div>
         <div class="ref-item"><div class="k">Restarts</div><div class="v">Pass or dribble in from sideline</div></div>
         <div class="ref-item"><div class="k">After a goal</div><div class="v">Opponents retreat to own goal</div></div>
         <div class="ref-item"><div class="k">Spirit</div><div class="v">Non-competitive · high-fives · RPS to start</div></div>
@@ -849,7 +849,7 @@
   // - Mix (blend): every team is filled with as even a split of the two
   //   squads as possible, so children play with and against the other squad.
   //
-  // Everyone plays every round in both modes — the trade-off is only who
+  // Everyone plays every round in both modes; the trade-off is only who
   // wears a bib.
   function planSession(squads, opts = {}) {
     const bibsIdx = opts.bibsSquadIdx ?? 0;
@@ -1153,7 +1153,7 @@
 
     const playersEl = el('div', { class: 'players' });
     team.players.forEach((p) => {
-      // Bib status reflects the SIDE, not the player's origin squad —
+      // Bib status reflects the SIDE, not the player's origin squad:
       // a crossover player takes off / puts on a bib for this round.
       const wearsBibs = team.side === 'bibs';
       const pClass = wearsBibs ? 'player bibs' : 'player';
@@ -1247,7 +1247,7 @@
     const rotates = plan.crossovers.some((c) => c.total > c.count);
     const msg = parts.join(' · ')
       + ' so every player is on a team and on the pitch every round.'
-      + (rotates ? ' The crossover rotates each round — check the schedule for who crosses.' : '');
+      + (rotates ? ' The crossover rotates each round. Check the schedule for who crosses.' : '');
 
     area.appendChild(el('div', { class: 'note' }, [
       el('div', { class: 'ico' }, 'MIX'),
@@ -1338,14 +1338,14 @@
       hintArea.appendChild(el('div', { class: 'note' }, [
         el('div', { class: 'ico' }, 'OVERRUN'),
         el('div', { class: 'txt', html:
-          `Schedule runs <strong>${playTime} min</strong> — longer than a 1-hour session. Shorten matches.`
+          `Schedule runs <strong>${playTime} min</strong>, longer than a 1-hour session. Shorten matches.`
         }),
       ]));
     } else if (playTime > 0 && playTime < 45) {
       hintArea.appendChild(el('div', { class: 'note muted' }, [
         el('div', { class: 'ico' }, 'NOTE'),
         el('div', { class: 'txt', html:
-          `Schedule is <strong>${playTime} min</strong>. Use remaining time for warm-up, drills or skills — every matchup is played exactly once.`
+          `Schedule is <strong>${playTime} min</strong>. Use remaining time for warm-up, drills or skills. Every matchup is played exactly once.`
         }),
       ]));
     }

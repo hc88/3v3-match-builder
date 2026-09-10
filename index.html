@@ -552,6 +552,14 @@
     margin-left: 8px;
     letter-spacing: 0.08em;
   }
+  .round-cross {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .round-cross strong { color: var(--chalk); font-weight: 700; }
   .round-resting {
     font-family: 'JetBrains Mono', monospace;
     font-size: 10px;
@@ -941,8 +949,11 @@
 
     const crossCount = aOnNoBibs + bOnBibs;
 
-    const bibsPool = makePool(aOnBibs, bibsIdx, bOnBibs, otherIdx);
-    const noBibsPool = makePool(bOnNoBibs, otherIdx, aOnNoBibs, bibsIdx);
+    // Squad-wide numbering: a squad's own-side players take the low numbers,
+    // its crossover players the high ones. Crossovers rotate per round (see
+    // crossoverForRound), so these are the round-1 assignments.
+    const bibsPool = makePool(aOnBibs, bibsIdx, 1, bOnBibs, otherIdx, bOnNoBibs + 1);
+    const noBibsPool = makePool(bOnNoBibs, otherIdx, 1, aOnNoBibs, bibsIdx, aOnBibs + 1);
 
     const bibsTeams = bibsSizes.map((size, i) => makeTeam(bibsPool, size, 'bibs', i, P));
     const noBibsTeams = noBibsSizes.map((size, i) => makeTeam(noBibsPool, size, 'noBibs', i, P));
@@ -952,21 +963,35 @@
       noBibs: noBibsTeams[i],
     }));
 
-    return { P, pitches, bibsTeams, noBibsTeams, crossCount, bibsIdx, otherIdx };
+    const crossovers = [
+      { squad: bibsIdx, total: A, count: aOnNoBibs, wearsBibs: false },
+      { squad: otherIdx, total: B, count: bOnBibs, wearsBibs: true },
+    ].filter((c) => c.count > 0);
+
+    return { P, pitches, bibsTeams, noBibsTeams, crossCount, crossovers, bibsIdx, otherIdx };
   }
 
-  function makePool(primaryCount, primaryIdx, secondaryCount, secondaryIdx) {
+  function makePool(primaryCount, primaryIdx, primaryStart, secondaryCount, secondaryIdx, secondaryStart) {
     const pool = [];
-    for (let i = 0; i < primaryCount; i++) pool.push(primaryIdx);
-    for (let i = 0; i < secondaryCount; i++) pool.push(secondaryIdx);
+    for (let i = 0; i < primaryCount; i++) pool.push({ squad: primaryIdx, num: primaryStart + i });
+    for (let i = 0; i < secondaryCount; i++) pool.push({ squad: secondaryIdx, num: secondaryStart + i });
     return pool;
   }
 
   function makeTeam(pool, size, side, idx, P) {
     const players = pool.splice(0, size);
-    const uniq = new Set(players);
+    const uniq = new Set(players.map((p) => p.squad));
     const mixed = uniq.size > 1;
     return { players, size, side, idx, mixed };
+  }
+
+  // Which players from a crossing squad cross over in round r. The crossover
+  // slots walk through the squad so no child is off-squad all session: the
+  // players who cross in round r swap places with the ones they replace.
+  function crossoverForRound(cross, r) {
+    const { total, count } = cross;
+    const base = Array.from({ length: count }, (_, i) => total - count + i);
+    return base.map((i) => ((i + r * count) % total) + 1);
   }
 
   // ---- Schedule (rotation across pitches) ------------------------------
@@ -1111,16 +1136,16 @@
     card.appendChild(head);
 
     const playersEl = el('div', { class: 'players' });
-    team.players.forEach((squadIdx, i) => {
+    team.players.forEach((p) => {
       // Bib status reflects the SIDE, not the player's origin squad —
-      // a crossover player takes off / puts on a bib for this session.
+      // a crossover player takes off / puts on a bib for this round.
       const wearsBibs = team.side === 'bibs';
       const pClass = wearsBibs ? 'player bibs' : 'player';
       playersEl.appendChild(el('div', {
         class: pClass,
-        style: `--col: ${SQUAD_COLORS[squadIdx]}`,
-        title: state.squads[squadIdx].name,
-      }, String(i + 1)));
+        style: `--col: ${SQUAD_COLORS[p.squad]}`,
+        title: `${state.squads[p.squad].name} #${p.num}`,
+      }, String(p.num)));
     });
     card.appendChild(playersEl);
     return card;
@@ -1177,9 +1202,9 @@
 
     // Count crossings by where each player's origin squad ended up.
     const bibsOnNoBibs = plan.noBibsTeams.reduce(
-      (s, t) => s + t.players.filter((p) => p === bibsIdx).length, 0);
+      (s, t) => s + t.players.filter((p) => p.squad === bibsIdx).length, 0);
     const otherOnBibs = plan.bibsTeams.reduce(
-      (s, t) => s + t.players.filter((p) => p === otherIdx).length, 0);
+      (s, t) => s + t.players.filter((p) => p.squad === otherIdx).length, 0);
 
     const parts = [];
     if (bibsOnNoBibs > 0) {
@@ -1192,7 +1217,10 @@
       const verb = otherOnBibs === 1 ? 'puts' : 'put';
       parts.push(`<strong>${otherOnBibs} ${noun}</strong> from <em>${escapeHtml(otherName)}</em> ${verb} on bibs and play on the bibs side`);
     }
-    const msg = parts.join(' · ') + ' so every player is on a team and on the pitch every round.';
+    const rotates = plan.crossovers.some((c) => c.total > c.count);
+    const msg = parts.join(' · ')
+      + ' so every player is on a team and on the pitch every round.'
+      + (rotates ? ' The crossover rotates each round — check the schedule for who crosses.' : '');
 
     area.appendChild(el('div', { class: 'note' }, [
       el('div', { class: 'ico' }, 'MIX'),
@@ -1210,7 +1238,7 @@
       dotClass += ' mixed';
       dotStyle = `--c1: ${SQUAD_COLORS[bibsIdx]}; --c2: ${SQUAD_COLORS[otherIdx]}`;
     } else {
-      const sqIdx = team.players[0];
+      const sqIdx = team.players[0].squad;
       dotClass += team.side === 'bibs' ? ' bibs' : '';
       dotStyle = `--col: ${SQUAD_COLORS[sqIdx]}`;
     }
@@ -1243,6 +1271,15 @@
       const numEl = el('div', { class: 'round-num' }, `Round ${rIdx + 1}`);
       numEl.appendChild(el('span', { class: 'time' }, `· ${totalElapsed}m`));
       head.appendChild(numEl);
+      if (plan.crossovers.length) {
+        const bits = plan.crossovers.map((c) => {
+          const nums = crossoverForRound(c, rIdx).map((n) => `#${n}`).join(', ');
+          const name = escapeHtml(state.squads[c.squad].name);
+          const verb = c.wearsBibs ? 'on bibs' : 'no bibs';
+          return `<strong>${name} ${nums}</strong> ${verb}`;
+        });
+        head.appendChild(el('div', { class: 'round-cross', html: `Crossover · ${bits.join(' · ')}` }));
+      }
       roundEl.appendChild(head);
 
       const pitchesEl = el('div', { class: 'pitches' });

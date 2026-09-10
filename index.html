@@ -760,6 +760,16 @@
           <button data-len="10">10m</button>
         </div>
       </div>
+      <div class="field-row">
+        <div class="field-label">Round robins
+          <span class="desc">Times every team plays every opponent</span>
+        </div>
+        <div class="pills" id="cyclesPills">
+          <button data-cycles="1" class="active">1</button>
+          <button data-cycles="2">2</button>
+          <button data-cycles="3">3</button>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -829,6 +839,7 @@
 
   const state = {
     matchLength: 8,
+    cycles: 1,
     bibsSquadIdx: 0,
     blend: false,
     squads: [
@@ -1014,11 +1025,13 @@
   // P teams per side. Round r: pitch i hosts bibsTeams[i] vs noBibsTeams[(i+r) % P].
   // Over P rounds, every bibs team plays every no-bibs team exactly once.
 
-  function buildSchedule(plan) {
+  // Repeating the cycle keeps rotating the crossover slot, since the round
+  // index keeps counting up across cycles.
+  function buildSchedule(plan, cycles = 1) {
     const { P, bibsTeams, noBibsTeams } = plan;
     if (P === 0) return [];
     const rounds = [];
-    for (let r = 0; r < P; r++) {
+    for (let r = 0; r < P * cycles; r++) {
       const matches = [];
       for (let i = 0; i < P; i++) {
         matches.push([bibsTeams[i], noBibsTeams[(i + r) % P]]);
@@ -1340,11 +1353,11 @@
           `Schedule runs <strong>${playTime} min</strong>, longer than a 1-hour session. Shorten matches.`
         }),
       ]));
-    } else if (playTime > 0 && playTime < 45) {
+    } else if (playTime > 0 && playTime < 30) {
       hintArea.appendChild(el('div', { class: 'note muted' }, [
         el('div', { class: 'ico' }, 'NOTE'),
         el('div', { class: 'txt', html:
-          `Schedule is <strong>${playTime} min</strong>. Use remaining time for warm-up, drills or skills. Every matchup is played exactly once.`
+          `Schedule is <strong>${playTime} min</strong> per child, under the FA's 30 to 40 min target. Add a round robin or lengthen matches, or use the time for warm-up and skills.`
         }),
       ]));
     }
@@ -1365,7 +1378,7 @@
     renderNote(plan);
     renderTeams(plan);
 
-    const rounds = buildSchedule(plan);
+    const rounds = buildSchedule(plan, state.cycles);
     renderSchedule(plan, rounds);
 
     const playTime = rounds.length * state.matchLength;
@@ -1386,6 +1399,17 @@
       state.matchLength = len;
       document.querySelectorAll('#matchLenPills button').forEach((b) => {
         b.classList.toggle('active', parseInt(b.dataset.len, 10) === len);
+      });
+      renderOutputs();
+    });
+  });
+
+  document.querySelectorAll('#cyclesPills button').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const n = parseInt(btn.dataset.cycles, 10);
+      state.cycles = n;
+      document.querySelectorAll('#cyclesPills button').forEach((b) => {
+        b.classList.toggle('active', parseInt(b.dataset.cycles, 10) === n);
       });
       renderOutputs();
     });

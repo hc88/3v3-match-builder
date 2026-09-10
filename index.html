@@ -898,6 +898,10 @@
   function squadColor(idx) {
     return state.squads[idx].color;
   }
+  const DEFAULT_NAMES = ['Home', 'Away'];
+  function squadName(idx) {
+    return state.squads[idx].name.trim() || DEFAULT_NAMES[idx];
+  }
   // Keep the CSS variables (used by section eyebrows and mixed gradients) in
   // step with the chosen squad colours.
   function applyColors() {
@@ -1202,7 +1206,7 @@
   function sideName(side) {
     if (state.blend || (currentPlan && currentPlan.single)) return side === 'bibs' ? 'Bibs' : 'No bibs';
     const bibsIdx = state.bibsSquadIdx;
-    return side === 'bibs' ? state.squads[bibsIdx].name : state.squads[1 - bibsIdx].name;
+    return side === 'bibs' ? squadName(bibsIdx) : squadName(1 - bibsIdx);
   }
   function teamLabel(team, sideIdx) {
     return `${sideName(team.side)} ${sideIdx + 1}`;
@@ -1212,7 +1216,7 @@
     const klass = `team ${team.mixed ? 'mixed' : ''} ${team.side === 'bibs' ? 'bibs' : ''}`.trim();
     const bibsIdx = state.bibsSquadIdx;
     const otherIdx = 1 - bibsIdx;
-    const accent = team.side === 'bibs' ? squadColor(bibsIdx) : squadColor(otherIdx);
+    const accent = squadColor(team.players[0].squad);
     const style = team.mixed
       ? `--c1: ${squadColor(bibsIdx)}; --c2: ${squadColor(otherIdx)}`
       : `--accent: ${accent}`;
@@ -1246,7 +1250,7 @@
       playersEl.appendChild(el('div', {
         class: pClass,
         style: `--col: ${squadColor(p.squad)}`,
-        title: `${state.squads[p.squad].name} #${p.num}`,
+        title: `${squadName(p.squad)} #${p.num}`,
       }, String(p.num)));
     });
     card.appendChild(playersEl);
@@ -1260,10 +1264,12 @@
     $('#teamsCount').textContent = totalTeams;
 
     if (totalTeams === 0) {
+      const messages = {
+        'too-few': 'Need at least 4 players to form 2 teams.',
+        'no-fit': '7 players cannot be split into 3v3, 3v2 or 2v2 pitches. Play one 4v3, or 3v3 with one player swapping in each round.',
+      };
       area.appendChild(el('div', { class: 'card empty' },
-        plan.error === 'too-few'
-          ? 'Need at least 4 players to form 2 teams.'
-          : 'Add some players to form teams.'));
+        messages[plan.error] || 'Add some players to form teams.'));
       return;
     }
 
@@ -1296,7 +1302,7 @@
     area.innerHTML = '';
     if (plan.pitches.length === 0) return;
     if (plan.single) {
-      const name = escapeHtml(state.squads[state.squads[plan.bibsIdx].count ? plan.bibsIdx : plan.otherIdx].name);
+      const name = escapeHtml(squadName(state.squads[plan.bibsIdx].count ? plan.bibsIdx : plan.otherIdx));
       area.appendChild(el('div', { class: 'note muted' }, [
         el('div', { class: 'ico' }, 'SOLO'),
         el('div', { class: 'txt', html:
@@ -1306,8 +1312,8 @@
       return;
     }
     if (plan.blend) {
-      const a = escapeHtml(state.squads[plan.bibsIdx].name);
-      const b = escapeHtml(state.squads[plan.otherIdx].name);
+      const a = escapeHtml(squadName(plan.bibsIdx));
+      const b = escapeHtml(squadName(plan.otherIdx));
       area.appendChild(el('div', { class: 'note muted' }, [
         el('div', { class: 'ico' }, 'MIX'),
         el('div', { class: 'txt', html:
@@ -1320,8 +1326,8 @@
 
     const bibsIdx = plan.bibsIdx ?? state.bibsSquadIdx;
     const otherIdx = plan.otherIdx ?? (1 - bibsIdx);
-    const bibsName = state.squads[bibsIdx].name;
-    const otherName = state.squads[otherIdx].name;
+    const bibsName = squadName(bibsIdx);
+    const otherName = squadName(otherIdx);
 
     // Count crossings by where each player's origin squad ended up.
     const bibsOnNoBibs = plan.noBibsTeams.reduce(
@@ -1397,9 +1403,14 @@
       if (plan.crossovers.length) {
         const bits = plan.crossovers.map((c) => {
           const nums = crossoverForRound(c, rIdx).map((n) => `#${n}`).join(', ');
-          const name = escapeHtml(state.squads[c.squad].name);
+          const name = escapeHtml(squadName(c.squad));
           const verb = c.wearsBibs ? 'on bibs' : 'no bibs';
-          return `<strong>${name} ${nums}</strong> ${verb}`;
+          // From round 2 the crossing player takes the place of the round-1
+          // crossover, who steps back into the vacated spot.
+          const swap = rIdx > 0 && c.total > c.count
+            ? ` (swap with ${crossoverForRound(c, 0).map((n) => `#${n}`).join(', ')})`
+            : '';
+          return `<strong>${name} ${nums}</strong> ${verb}${swap}`;
         });
         head.appendChild(el('div', { class: 'round-cross', html: `Crossover · ${bits.join(' · ')}` }));
       }

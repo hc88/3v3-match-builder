@@ -69,14 +69,6 @@
     padding: 12px 0 18px;
     border-bottom: 1px solid var(--border);
   }
-  .eyebrow {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.18em;
-    color: var(--turf);
-    margin-bottom: 8px;
-  }
   h1 {
     font-family: 'Bebas Neue', sans-serif;
     font-size: clamp(40px, 9vw, 72px);
@@ -560,13 +552,6 @@
     color: var(--muted);
   }
   .round-cross strong { color: var(--chalk); font-weight: 700; }
-  .round-resting {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 10px;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--muted);
-  }
   .pitches {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -721,6 +706,27 @@
     .squad-row .stepper { grid-area: stepper; justify-self: start; }
     .squad-row .bibs-toggle { grid-area: bibs; justify-self: end; }
   }
+  @media print {
+    :root {
+      --bg: #ffffff;
+      --surface: #ffffff;
+      --surface-2: #f3f3f3;
+      --border: #bbbbbb;
+      --border-strong: #999999;
+      --chalk: #111111;
+      --muted: #555555;
+    }
+    * { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+    body { background: #fff; background-image: none; color: #111; }
+    .wrap { max-width: none; padding: 0; }
+    header.hero { margin-bottom: 12px; padding: 0 0 8px; }
+    .subtitle, .stepper, .pills, .bibs-toggle, .src { display: none !important; }
+    section:has(#squadList), section:has(#matchLenPills), section:has(.ref-card) { display: none; }
+    .card { padding: 10px; margin-bottom: 10px; }
+    .team, .round, .stat { break-inside: avoid; }
+    .team, .pitch { border-color: #999; }
+    a { color: inherit; text-decoration: none; }
+  }
 </style>
 </head>
 <body>
@@ -808,7 +814,7 @@
   </section>
 
   <section>
-    <h2>FA FutureFit · Quick Ref</h2>
+    <h2>3v3 Quick Ref</h2>
     <div class="card ref-card">
       <div class="ref-grid">
         <div class="ref-item"><div class="k">Match length</div><div class="v">6–10 min per game</div></div>
@@ -821,8 +827,10 @@
         <div class="ref-item"><div class="k">Scoring</div><div class="v">Must cross the halfway line before shooting</div></div>
         <div class="ref-item"><div class="k">Substitutes</div><div class="v">None. Everyone plays</div></div>
         <div class="ref-item"><div class="k">Format</div><div class="v">Carousel: rotate pitches each round</div></div>
-        <div class="ref-item"><div class="k">Restarts</div><div class="v">Pass or dribble in from sideline</div></div>
-        <div class="ref-item"><div class="k">After a goal</div><div class="v">Opponents retreat to own goal</div></div>
+        <div class="ref-item"><div class="k">Restarts</div><div class="v">Pass or dribble in · opponents 3 m back</div></div>
+        <div class="ref-item"><div class="k">After a goal</div><div class="v">Conceding team restarts from goal line · opponents retreat to own half</div></div>
+        <div class="ref-item"><div class="k">Free kicks</div><div class="v">At least 3 m from goal · no penalties</div></div>
+        <div class="ref-item"><div class="k">Squad</div><div class="v">6 to 12 per matchday recommended</div></div>
         <div class="ref-item"><div class="k">Spirit</div><div class="v">Non-competitive · high-fives · RPS to start</div></div>
       </div>
       <div class="src">Source: <a href="https://futurefit.englandfootball.com/futurefit/a-closer-look-at-3v3/index.html" target="_blank" rel="noopener">futurefit.englandfootball.com</a></div>
@@ -925,7 +933,14 @@
       ...Array(c).fill(2),
     ];
 
-    if (blend) return buildBlendPlan(P, bibsSizes, noBibsSizes, A, B, bibsIdx, otherIdx);
+    // One squad only: split it across both sides rather than reporting the
+    // whole side as a "crossover".
+    if (blend || A === 0 || B === 0) {
+      const plan = buildBlendPlan(P, bibsSizes, noBibsSizes, A, B, bibsIdx, otherIdx);
+      plan.blend = blend;
+      plan.single = A === 0 || B === 0;
+      return plan;
+    }
 
     const bibsCapacity = bibsSizes.reduce((s, n) => s + n, 0);
     const noBibsCapacity = noBibsSizes.reduce((s, n) => s + n, 0);
@@ -948,8 +963,8 @@
     const bibsPool = makePool(aOnBibs, bibsIdx, 1, bOnBibs, otherIdx, bOnNoBibs + 1);
     const noBibsPool = makePool(bOnNoBibs, otherIdx, 1, aOnNoBibs, bibsIdx, aOnBibs + 1);
 
-    const bibsTeams = bibsSizes.map((size, i) => makeTeam(bibsPool, size, 'bibs', i, P));
-    const noBibsTeams = noBibsSizes.map((size, i) => makeTeam(noBibsPool, size, 'noBibs', i, P));
+    const bibsTeams = bibsSizes.map((size, i) => makeTeam(bibsPool, size, 'bibs', i));
+    const noBibsTeams = noBibsSizes.map((size, i) => makeTeam(noBibsPool, size, 'noBibs', i));
 
     const pitches = bibsTeams.map((team, i) => ({
       bibs: team,
@@ -1004,7 +1019,7 @@
     return pool;
   }
 
-  function makeTeam(pool, size, side, idx, P) {
+  function makeTeam(pool, size, side, idx) {
     const players = pool.splice(0, size);
     const uniq = new Set(players.map((p) => p.squad));
     const mixed = uniq.size > 1;
@@ -1125,8 +1140,9 @@
     });
   }
 
+  let currentPlan = null;
   function sideName(side) {
-    if (state.blend) return side === 'bibs' ? 'Bibs' : 'No bibs';
+    if (state.blend || (currentPlan && currentPlan.single)) return side === 'bibs' ? 'Bibs' : 'No bibs';
     const bibsIdx = state.bibsSquadIdx;
     return side === 'bibs' ? state.squads[bibsIdx].name : state.squads[1 - bibsIdx].name;
   }
@@ -1206,7 +1222,7 @@
       area.appendChild(eyebrow);
     };
 
-    sectionHeader(bibsKlass, bibsName, !state.blend);
+    sectionHeader(bibsKlass, bibsName, !(state.blend || plan.single));
     const bibsGrid = el('div', { class: 'teams-grid' });
     plan.bibsTeams.forEach((t, i) => bibsGrid.appendChild(teamCard(t, i)));
     area.appendChild(bibsGrid);
@@ -1221,6 +1237,16 @@
     const area = $('#noteArea');
     area.innerHTML = '';
     if (plan.pitches.length === 0) return;
+    if (plan.single) {
+      const name = escapeHtml(state.squads[state.squads[plan.bibsIdx].count ? plan.bibsIdx : plan.otherIdx].name);
+      area.appendChild(el('div', { class: 'note muted' }, [
+        el('div', { class: 'ico' }, 'SOLO'),
+        el('div', { class: 'txt', html:
+          `Only <em>${name}</em> is here, so the squad is split into a bibs side and a no-bibs side.`
+        }),
+      ]));
+      return;
+    }
     if (plan.blend) {
       const a = escapeHtml(state.squads[plan.bibsIdx].name);
       const b = escapeHtml(state.squads[plan.otherIdx].name);
@@ -1368,6 +1394,8 @@
       blend: state.blend,
       bibsSquadIdx: state.bibsSquadIdx,
     });
+    currentPlan = plan;
+    saveState();
     const totalPlayers = state.squads.reduce((s, sq) => s + sq.count, 0);
     const totalTeams = plan.bibsTeams ? plan.bibsTeams.length + plan.noBibsTeams.length : 0;
 
@@ -1389,6 +1417,41 @@
   function renderAll() {
     renderSquads();
     renderOutputs();
+  }
+
+  // ---- Persistence -----------------------------------------------------
+
+  const STORAGE_KEY = '3v3-match-builder';
+  function saveState() {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) { /* storage unavailable */ }
+  }
+  function loadState() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      const saved = JSON.parse(raw);
+      if ([6, 8, 10].includes(saved.matchLength)) state.matchLength = saved.matchLength;
+      if ([1, 2, 3].includes(saved.cycles)) state.cycles = saved.cycles;
+      if (saved.bibsSquadIdx === 0 || saved.bibsSquadIdx === 1) state.bibsSquadIdx = saved.bibsSquadIdx;
+      state.blend = saved.blend === true;
+      if (Array.isArray(saved.squads) && saved.squads.length === 2) {
+        saved.squads.forEach((sq, i) => {
+          if (typeof sq.name === 'string') state.squads[i].name = sq.name.slice(0, 24);
+          if (Number.isInteger(sq.count) && sq.count >= 0 && sq.count <= 30) state.squads[i].count = sq.count;
+        });
+      }
+    } catch (e) { /* ignore bad or missing data */ }
+  }
+  function syncPills() {
+    document.querySelectorAll('#matchLenPills button').forEach((b) => {
+      b.classList.toggle('active', parseInt(b.dataset.len, 10) === state.matchLength);
+    });
+    document.querySelectorAll('#cyclesPills button').forEach((b) => {
+      b.classList.toggle('active', parseInt(b.dataset.cycles, 10) === state.cycles);
+    });
+    document.querySelectorAll('#formatPills button').forEach((b) => {
+      b.classList.toggle('active', (b.dataset.format === 'blend') === state.blend);
+    });
   }
 
   // ---- Bind controls ---------------------------------------------------
@@ -1425,6 +1488,8 @@
     });
   });
 
+  loadState();
+  syncPills();
   renderAll();
 })();
 </script>

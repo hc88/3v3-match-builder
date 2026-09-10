@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <meta name="theme-color" content="#0a0f0a" />
-<title>3v3 Match Builder — U7 Session Planner</title>
+<title>3v3 Match Builder</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
@@ -68,14 +68,6 @@
     margin-bottom: 28px;
     padding: 12px 0 18px;
     border-bottom: 1px solid var(--border);
-  }
-  .eyebrow {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.18em;
-    color: var(--turf);
-    margin-bottom: 8px;
   }
   h1 {
     font-family: 'Bebas Neue', sans-serif;
@@ -560,13 +552,6 @@
     color: var(--muted);
   }
   .round-cross strong { color: var(--chalk); font-weight: 700; }
-  .round-resting {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 10px;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--muted);
-  }
   .pitches {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -721,15 +706,35 @@
     .squad-row .stepper { grid-area: stepper; justify-self: start; }
     .squad-row .bibs-toggle { grid-area: bibs; justify-self: end; }
   }
+  @media print {
+    :root {
+      --bg: #ffffff;
+      --surface: #ffffff;
+      --surface-2: #f3f3f3;
+      --border: #bbbbbb;
+      --border-strong: #999999;
+      --chalk: #111111;
+      --muted: #555555;
+    }
+    * { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+    body { background: #fff; background-image: none; color: #111; }
+    .wrap { max-width: none; padding: 0; }
+    header.hero { margin-bottom: 12px; padding: 0 0 8px; }
+    .subtitle, .stepper, .pills, .bibs-toggle, .src { display: none !important; }
+    section:has(#squadList), section:has(#matchLenPills), section:has(.ref-card) { display: none; }
+    .card { padding: 10px; margin-bottom: 10px; }
+    .team, .round, .stat { break-inside: avoid; }
+    .team, .pitch { border-color: #999; }
+    a { color: inherit; text-decoration: none; }
+  }
 </style>
 </head>
 <body>
 <div class="wrap">
 
   <header class="hero">
-    <div class="eyebrow">U7 Session Planner</div>
     <h1>3v3 <span class="accent">Match</span> Builder</h1>
-    <p class="subtitle">Two squads, an hour of football. Plan teams, bibs, pitches and a no-repeat round-robin — built for mixed-attendance, non-competitive sessions.</p>
+    <p class="subtitle">Two squads, an hour of football. Plan teams, bibs, pitches and a no-repeat round-robin, built for mixed-attendance, non-competitive sessions.</p>
   </header>
 
   <section>
@@ -744,11 +749,11 @@
     <div class="card">
       <div class="field-row">
         <div class="field-label">Team format
-          <span class="desc">Mix squads for full 3v3 matches</span>
+          <span class="desc">Pure keeps squads together · Mix blends them evenly</span>
         </div>
         <div class="pills" id="formatPills">
-          <button data-format="all-play" class="active">Pure</button>
-          <button data-format="max-threes">Mix</button>
+          <button data-format="pure" class="active">Pure</button>
+          <button data-format="blend">Mix</button>
         </div>
       </div>
       <div class="field-row">
@@ -759,6 +764,16 @@
           <button data-len="6">6m</button>
           <button data-len="8" class="active">8m</button>
           <button data-len="10">10m</button>
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field-label">Round robins
+          <span class="desc">Times every team plays every opponent</span>
+        </div>
+        <div class="pills" id="cyclesPills">
+          <button data-cycles="1" class="active">1</button>
+          <button data-cycles="2">2</button>
+          <button data-cycles="3">3</button>
         </div>
       </div>
     </div>
@@ -799,7 +814,7 @@
   </section>
 
   <section>
-    <h2>FA FutureFit · Quick Ref</h2>
+    <h2>3v3 Quick Ref</h2>
     <div class="card ref-card">
       <div class="ref-grid">
         <div class="ref-item"><div class="k">Match length</div><div class="v">6–10 min per game</div></div>
@@ -810,10 +825,12 @@
         <div class="ref-item"><div class="k">Layout</div><div class="v">Up to 4× 3v3 on one 5v5</div></div>
         <div class="ref-item"><div class="k">Rules</div><div class="v">No GKs, no offside, no heading</div></div>
         <div class="ref-item"><div class="k">Scoring</div><div class="v">Must cross the halfway line before shooting</div></div>
-        <div class="ref-item"><div class="k">Substitutes</div><div class="v">None — everyone plays</div></div>
-        <div class="ref-item"><div class="k">Format</div><div class="v">Carousel — rotate pitches each round</div></div>
-        <div class="ref-item"><div class="k">Restarts</div><div class="v">Pass or dribble in from sideline</div></div>
-        <div class="ref-item"><div class="k">After a goal</div><div class="v">Opponents retreat to own goal</div></div>
+        <div class="ref-item"><div class="k">Substitutes</div><div class="v">None. Everyone plays</div></div>
+        <div class="ref-item"><div class="k">Format</div><div class="v">Carousel: rotate pitches each round</div></div>
+        <div class="ref-item"><div class="k">Restarts</div><div class="v">Pass or dribble in · opponents 3 m back</div></div>
+        <div class="ref-item"><div class="k">After a goal</div><div class="v">Conceding team restarts from goal line · opponents retreat to own half</div></div>
+        <div class="ref-item"><div class="k">Free kicks</div><div class="v">At least 3 m from goal · no penalties</div></div>
+        <div class="ref-item"><div class="k">Squad</div><div class="v">6 to 12 per matchday recommended</div></div>
         <div class="ref-item"><div class="k">Spirit</div><div class="v">Non-competitive · high-fives · RPS to start</div></div>
       </div>
       <div class="src">Source: <a href="https://futurefit.englandfootball.com/futurefit/a-closer-look-at-3v3/index.html" target="_blank" rel="noopener">futurefit.englandfootball.com</a></div>
@@ -830,8 +847,9 @@
 
   const state = {
     matchLength: 8,
+    cycles: 1,
     bibsSquadIdx: 0,
-    maxThrees: false,
+    blend: false,
     squads: [
       { name: 'Home', count: 6 },
       { name: 'Away', count: 6 },
@@ -839,14 +857,18 @@
   };
 
   // Pick the smallest pitch count P where A+B players fit into P matches sized
-  // 3v3 / 3v2 / 2v2. Two modes share the same P (and the same total count of
-  // 3-player teams, which equals T - 4P at any valid P):
+  // 3v3 / 3v2 / 2v2, then the layout with the most 3v3 matches. The number of
+  // 3-player teams is fixed at T - 4P for any valid P, so both modes share the
+  // same layout and differ only in who fills each team:
   //
-  // - default: prefer pure squad-vs-squad sides; cross the fewest players
-  //   when counts don't divide cleanly. May surface 3v2 matches.
-  // - maxThrees: prefer the layout with the most 3v3 matches (max a),
-  //   accepting cross-squad mixing on some pitches to enable it. Everyone
-  //   still plays every round — the trade-off is bib-on/off, not rest.
+  // - Pure: squads stay on their own side of the bibs line; the fewest
+  //   players possible cross over to complete the layout, and the crossover
+  //   rotates each round.
+  // - Mix (blend): every team is filled with as even a split of the two
+  //   squads as possible, so children play with and against the other squad.
+  //
+  // Everyone plays every round in both modes; the trade-off is only who
+  // wears a bib.
   function planSession(squads, opts = {}) {
     const bibsIdx = opts.bibsSquadIdx ?? 0;
     const otherIdx = 1 - bibsIdx;
@@ -858,21 +880,7 @@
     const minP = Math.max(1, Math.ceil(T / 6));
     const maxP = Math.floor(T / 4);
 
-    if (!opts.maxThrees) {
-      // Phase 1 — search for a pure fit (no cross-squad players).
-      for (let P = minP; P <= maxP; P++) {
-        const configs = enumerateConfigs(P, T);
-        for (const cfg of configs) {
-          const pureX = pureFitX(cfg, A);
-          if (pureX !== null) {
-            return buildPlan(P, cfg, pureX, A, B, bibsIdx, otherIdx);
-          }
-        }
-      }
-    }
-
-    // Either maxThrees mode, or default fell through to mixing. Pick the
-    // best plan by (smallest P, most 3v3, fewest crosses).
+    // Pick the best plan by (smallest P, most 3v3, fewest crosses).
     let best = null;
     for (let P = minP; P <= maxP; P++) {
       const configs = enumerateConfigs(P, T);
@@ -882,7 +890,7 @@
           const crosses = Math.abs(A - bibsCapacity);
           const score = { P, neg3v3: -cfg.a, crosses };
           if (!best || isBetter(score, best.score)) {
-            best = { score, plan: buildPlan(P, cfg, x, A, B, bibsIdx, otherIdx) };
+            best = { score, plan: buildPlan(P, cfg, x, A, B, bibsIdx, otherIdx, opts.blend) };
           }
         }
       }
@@ -911,16 +919,7 @@
     return out;
   }
 
-  // Given a config, find x ∈ [0, b] such that bibs side capacity == A. Returns
-  // null if no pure x exists.
-  function pureFitX({ a, b, c }, A) {
-    const baseBibs = 3 * a + 2 * b + 2 * c;
-    const x = A - baseBibs;
-    if (x >= 0 && x <= b) return x;
-    return null;
-  }
-
-  function buildPlan(P, { a, b, c }, x, A, B, bibsIdx, otherIdx) {
+  function buildPlan(P, { a, b, c }, x, A, B, bibsIdx, otherIdx, blend) {
     const bibsSizes = [
       ...Array(a).fill(3),
       ...Array(x).fill(3),
@@ -933,6 +932,15 @@
       ...Array(b - x).fill(3),
       ...Array(c).fill(2),
     ];
+
+    // One squad only: split it across both sides rather than reporting the
+    // whole side as a "crossover".
+    if (blend || A === 0 || B === 0) {
+      const plan = buildBlendPlan(P, bibsSizes, noBibsSizes, A, B, bibsIdx, otherIdx);
+      plan.blend = blend;
+      plan.single = A === 0 || B === 0;
+      return plan;
+    }
 
     const bibsCapacity = bibsSizes.reduce((s, n) => s + n, 0);
     const noBibsCapacity = noBibsSizes.reduce((s, n) => s + n, 0);
@@ -955,8 +963,8 @@
     const bibsPool = makePool(aOnBibs, bibsIdx, 1, bOnBibs, otherIdx, bOnNoBibs + 1);
     const noBibsPool = makePool(bOnNoBibs, otherIdx, 1, aOnNoBibs, bibsIdx, aOnBibs + 1);
 
-    const bibsTeams = bibsSizes.map((size, i) => makeTeam(bibsPool, size, 'bibs', i, P));
-    const noBibsTeams = noBibsSizes.map((size, i) => makeTeam(noBibsPool, size, 'noBibs', i, P));
+    const bibsTeams = bibsSizes.map((size, i) => makeTeam(bibsPool, size, 'bibs', i));
+    const noBibsTeams = noBibsSizes.map((size, i) => makeTeam(noBibsPool, size, 'noBibs', i));
 
     const pitches = bibsTeams.map((team, i) => ({
       bibs: team,
@@ -971,6 +979,39 @@
     return { P, pitches, bibsTeams, noBibsTeams, crossCount, crossovers, bibsIdx, otherIdx };
   }
 
+  // Blend: deal both squads across every team so each team's split mirrors
+  // the squads' overall ratio as closely as its size allows. Teams are filled
+  // pitch by pitch (bibs, then no-bibs) so the two sides stay balanced too.
+  function buildBlendPlan(P, bibsSizes, noBibsSizes, A, B, bibsIdx, otherIdx) {
+    let remA = A;
+    let remB = B;
+    let nextA = 1;
+    let nextB = 1;
+    const fill = (size, side, idx) => {
+      const share = remA + remB > 0 ? remA / (remA + remB) : 0;
+      let takeA = Math.round(size * share);
+      takeA = Math.max(takeA, size - remB);
+      takeA = Math.min(takeA, remA, size);
+      const takeB = size - takeA;
+      const players = [];
+      for (let i = 0; i < takeA; i++) players.push({ squad: bibsIdx, num: nextA++ });
+      for (let i = 0; i < takeB; i++) players.push({ squad: otherIdx, num: nextB++ });
+      remA -= takeA;
+      remB -= takeB;
+      const mixed = takeA > 0 && takeB > 0;
+      return { players, size, side, idx, mixed };
+    };
+
+    const bibsTeams = [];
+    const noBibsTeams = [];
+    for (let i = 0; i < P; i++) {
+      bibsTeams.push(fill(bibsSizes[i], 'bibs', i));
+      noBibsTeams.push(fill(noBibsSizes[i], 'noBibs', i));
+    }
+    const pitches = bibsTeams.map((team, i) => ({ bibs: team, noBibs: noBibsTeams[i] }));
+    return { P, pitches, bibsTeams, noBibsTeams, crossCount: 0, crossovers: [], blend: true, bibsIdx, otherIdx };
+  }
+
   function makePool(primaryCount, primaryIdx, primaryStart, secondaryCount, secondaryIdx, secondaryStart) {
     const pool = [];
     for (let i = 0; i < primaryCount; i++) pool.push({ squad: primaryIdx, num: primaryStart + i });
@@ -978,7 +1019,7 @@
     return pool;
   }
 
-  function makeTeam(pool, size, side, idx, P) {
+  function makeTeam(pool, size, side, idx) {
     const players = pool.splice(0, size);
     const uniq = new Set(players.map((p) => p.squad));
     const mixed = uniq.size > 1;
@@ -999,11 +1040,13 @@
   // P teams per side. Round r: pitch i hosts bibsTeams[i] vs noBibsTeams[(i+r) % P].
   // Over P rounds, every bibs team plays every no-bibs team exactly once.
 
-  function buildSchedule(plan) {
+  // Repeating the cycle keeps rotating the crossover slot, since the round
+  // index keeps counting up across cycles.
+  function buildSchedule(plan, cycles = 1) {
     const { P, bibsTeams, noBibsTeams } = plan;
     if (P === 0) return [];
     const rounds = [];
-    for (let r = 0; r < P; r++) {
+    for (let r = 0; r < P * cycles; r++) {
       const matches = [];
       for (let i = 0; i < P; i++) {
         matches.push([bibsTeams[i], noBibsTeams[(i + r) % P]]);
@@ -1097,13 +1140,14 @@
     });
   }
 
-  function teamLabel(team, sideIdx) {
+  let currentPlan = null;
+  function sideName(side) {
+    if (state.blend || (currentPlan && currentPlan.single)) return side === 'bibs' ? 'Bibs' : 'No bibs';
     const bibsIdx = state.bibsSquadIdx;
-    const otherIdx = 1 - bibsIdx;
-    const label = team.side === 'bibs'
-      ? state.squads[bibsIdx].name
-      : state.squads[otherIdx].name;
-    return `${label} ${sideIdx + 1}`;
+    return side === 'bibs' ? state.squads[bibsIdx].name : state.squads[1 - bibsIdx].name;
+  }
+  function teamLabel(team, sideIdx) {
+    return `${sideName(team.side)} ${sideIdx + 1}`;
   }
 
   function teamCard(team, sideIdx) {
@@ -1137,7 +1181,7 @@
 
     const playersEl = el('div', { class: 'players' });
     team.players.forEach((p) => {
-      // Bib status reflects the SIDE, not the player's origin squad —
+      // Bib status reflects the SIDE, not the player's origin squad:
       // a crossover player takes off / puts on a bib for this round.
       const wearsBibs = team.side === 'bibs';
       const pClass = wearsBibs ? 'player bibs' : 'player';
@@ -1167,8 +1211,8 @@
 
     const bibsIdx = state.bibsSquadIdx;
     const otherIdx = 1 - bibsIdx;
-    const bibsName = state.squads[bibsIdx].name;
-    const otherName = state.squads[otherIdx].name;
+    const bibsName = sideName('bibs');
+    const otherName = sideName('noBibs');
     const bibsKlass = bibsIdx === 0 ? 'a' : 'b';
     const otherKlass = bibsIdx === 0 ? 'b' : 'a';
 
@@ -1178,7 +1222,7 @@
       area.appendChild(eyebrow);
     };
 
-    sectionHeader(bibsKlass, bibsName, true);
+    sectionHeader(bibsKlass, bibsName, !(state.blend || plan.single));
     const bibsGrid = el('div', { class: 'teams-grid' });
     plan.bibsTeams.forEach((t, i) => bibsGrid.appendChild(teamCard(t, i)));
     area.appendChild(bibsGrid);
@@ -1193,6 +1237,27 @@
     const area = $('#noteArea');
     area.innerHTML = '';
     if (plan.pitches.length === 0) return;
+    if (plan.single) {
+      const name = escapeHtml(state.squads[state.squads[plan.bibsIdx].count ? plan.bibsIdx : plan.otherIdx].name);
+      area.appendChild(el('div', { class: 'note muted' }, [
+        el('div', { class: 'ico' }, 'SOLO'),
+        el('div', { class: 'txt', html:
+          `Only <em>${name}</em> is here, so the squad is split into a bibs side and a no-bibs side.`
+        }),
+      ]));
+      return;
+    }
+    if (plan.blend) {
+      const a = escapeHtml(state.squads[plan.bibsIdx].name);
+      const b = escapeHtml(state.squads[plan.otherIdx].name);
+      area.appendChild(el('div', { class: 'note muted' }, [
+        el('div', { class: 'ico' }, 'MIX'),
+        el('div', { class: 'txt', html:
+          `Every team blends <em>${a}</em> and <em>${b}</em> as evenly as the numbers allow. The bibs side wears bibs whichever squad they came from.`
+        }),
+      ]));
+      return;
+    }
     if (plan.crossCount === 0) return;
 
     const bibsIdx = plan.bibsIdx ?? state.bibsSquadIdx;
@@ -1220,7 +1285,7 @@
     const rotates = plan.crossovers.some((c) => c.total > c.count);
     const msg = parts.join(' · ')
       + ' so every player is on a team and on the pitch every round.'
-      + (rotates ? ' The crossover rotates each round — check the schedule for who crosses.' : '');
+      + (rotates ? ' The crossover rotates each round. Check the schedule for who crosses.' : '');
 
     area.appendChild(el('div', { class: 'note' }, [
       el('div', { class: 'ico' }, 'MIX'),
@@ -1311,14 +1376,14 @@
       hintArea.appendChild(el('div', { class: 'note' }, [
         el('div', { class: 'ico' }, 'OVERRUN'),
         el('div', { class: 'txt', html:
-          `Schedule runs <strong>${playTime} min</strong> — longer than a 1-hour session. Shorten matches.`
+          `Schedule runs <strong>${playTime} min</strong>, longer than a 1-hour session. Shorten matches.`
         }),
       ]));
-    } else if (playTime > 0 && playTime < 45) {
+    } else if (playTime > 0 && playTime < 30) {
       hintArea.appendChild(el('div', { class: 'note muted' }, [
         el('div', { class: 'ico' }, 'NOTE'),
         el('div', { class: 'txt', html:
-          `Schedule is <strong>${playTime} min</strong>. Use remaining time for warm-up, drills or skills — every matchup is played exactly once.`
+          `Schedule is <strong>${playTime} min</strong> per child, under the FA's 30 to 40 min target. Add a round robin or lengthen matches, or use the time for warm-up and skills.`
         }),
       ]));
     }
@@ -1326,9 +1391,11 @@
 
   function renderOutputs() {
     const plan = planSession(state.squads, {
-      maxThrees: state.maxThrees,
+      blend: state.blend,
       bibsSquadIdx: state.bibsSquadIdx,
     });
+    currentPlan = plan;
+    saveState();
     const totalPlayers = state.squads.reduce((s, sq) => s + sq.count, 0);
     const totalTeams = plan.bibsTeams ? plan.bibsTeams.length + plan.noBibsTeams.length : 0;
 
@@ -1339,7 +1406,7 @@
     renderNote(plan);
     renderTeams(plan);
 
-    const rounds = buildSchedule(plan);
+    const rounds = buildSchedule(plan, state.cycles);
     renderSchedule(plan, rounds);
 
     const playTime = rounds.length * state.matchLength;
@@ -1350,6 +1417,41 @@
   function renderAll() {
     renderSquads();
     renderOutputs();
+  }
+
+  // ---- Persistence -----------------------------------------------------
+
+  const STORAGE_KEY = '3v3-match-builder';
+  function saveState() {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) { /* storage unavailable */ }
+  }
+  function loadState() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      const saved = JSON.parse(raw);
+      if ([6, 8, 10].includes(saved.matchLength)) state.matchLength = saved.matchLength;
+      if ([1, 2, 3].includes(saved.cycles)) state.cycles = saved.cycles;
+      if (saved.bibsSquadIdx === 0 || saved.bibsSquadIdx === 1) state.bibsSquadIdx = saved.bibsSquadIdx;
+      state.blend = saved.blend === true;
+      if (Array.isArray(saved.squads) && saved.squads.length === 2) {
+        saved.squads.forEach((sq, i) => {
+          if (typeof sq.name === 'string') state.squads[i].name = sq.name.slice(0, 24);
+          if (Number.isInteger(sq.count) && sq.count >= 0 && sq.count <= 30) state.squads[i].count = sq.count;
+        });
+      }
+    } catch (e) { /* ignore bad or missing data */ }
+  }
+  function syncPills() {
+    document.querySelectorAll('#matchLenPills button').forEach((b) => {
+      b.classList.toggle('active', parseInt(b.dataset.len, 10) === state.matchLength);
+    });
+    document.querySelectorAll('#cyclesPills button').forEach((b) => {
+      b.classList.toggle('active', parseInt(b.dataset.cycles, 10) === state.cycles);
+    });
+    document.querySelectorAll('#formatPills button').forEach((b) => {
+      b.classList.toggle('active', (b.dataset.format === 'blend') === state.blend);
+    });
   }
 
   // ---- Bind controls ---------------------------------------------------
@@ -1365,9 +1467,20 @@
     });
   });
 
+  document.querySelectorAll('#cyclesPills button').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const n = parseInt(btn.dataset.cycles, 10);
+      state.cycles = n;
+      document.querySelectorAll('#cyclesPills button').forEach((b) => {
+        b.classList.toggle('active', parseInt(b.dataset.cycles, 10) === n);
+      });
+      renderOutputs();
+    });
+  });
+
   document.querySelectorAll('#formatPills button').forEach((btn) => {
     btn.addEventListener('click', () => {
-      state.maxThrees = btn.dataset.format === 'max-threes';
+      state.blend = btn.dataset.format === 'blend';
       document.querySelectorAll('#formatPills button').forEach((b) => {
         b.classList.toggle('active', b.dataset.format === btn.dataset.format);
       });
@@ -1375,6 +1488,8 @@
     });
   });
 
+  loadState();
+  syncPills();
   renderAll();
 })();
 </script>

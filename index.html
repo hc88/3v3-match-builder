@@ -1013,11 +1013,13 @@
     // Squad-wide numbering: a squad's own-side players take the low numbers,
     // its crossover players the high ones. Crossovers rotate per round (see
     // crossoverForRound), so these are the round-1 assignments.
-    const bibsPool = makePool(aOnBibs, bibsIdx, 1, bOnBibs, otherIdx, bOnNoBibs + 1);
-    const noBibsPool = makePool(bOnNoBibs, otherIdx, 1, aOnNoBibs, bibsIdx, aOnBibs + 1);
+    const bibsOwn = makePool(aOnBibs, bibsIdx, 1);
+    const bibsLent = makePool(bOnBibs, otherIdx, bOnNoBibs + 1);
+    const noBibsOwn = makePool(bOnNoBibs, otherIdx, 1);
+    const noBibsLent = makePool(aOnNoBibs, bibsIdx, aOnBibs + 1);
 
-    const bibsTeams = bibsSizes.map((size, i) => makeTeam(bibsPool, size, 'bibs', i));
-    const noBibsTeams = noBibsSizes.map((size, i) => makeTeam(noBibsPool, size, 'noBibs', i));
+    const bibsTeams = fillSide(bibsSizes, bibsOwn, bibsLent, 'bibs');
+    const noBibsTeams = fillSide(noBibsSizes, noBibsOwn, noBibsLent, 'noBibs');
 
     const pitches = bibsTeams.map((team, i) => ({
       bibs: team,
@@ -1065,19 +1067,31 @@
     return { P, pitches, bibsTeams, noBibsTeams, crossCount: 0, crossovers: [], blend: true, bibsIdx, otherIdx };
   }
 
-  function makePool(primaryCount, primaryIdx, primaryStart, secondaryCount, secondaryIdx, secondaryStart) {
-    const pool = [];
-    for (let i = 0; i < primaryCount; i++) pool.push({ squad: primaryIdx, num: primaryStart + i });
-    for (let i = 0; i < secondaryCount; i++) pool.push({ squad: secondaryIdx, num: secondaryStart + i });
-    return pool;
+  function makePool(count, squad, start) {
+    return Array.from({ length: count }, (_, i) => ({ squad, num: start + i }));
   }
 
-  function makeTeam(pool, size, side, idx) {
-    const players = pool.splice(0, size);
-    const uniq = new Set(players.map((p) => p.squad));
-    const mixed = uniq.size > 1;
-    return { players, size, side, idx, mixed };
+  // Fill one side's teams. Lent (crossover) players go into 3-player teams
+  // first so a child playing away from their squad still has two teammates
+  // whenever the layout allows; own-squad players take the remaining slots in
+  // team order.
+  function fillSide(sizes, own, lent, side) {
+    const teams = sizes.map((size, idx) => ({ players: [], size, side, idx, mixed: false }));
+    const bySize = teams.slice().sort((a, b) => b.size - a.size);
+    const lentQueue = lent.slice();
+    for (const t of bySize) {
+      while (lentQueue.length && t.players.length < t.size) t.players.push(lentQueue.shift());
+    }
+    const ownQueue = own.slice();
+    for (const t of teams) {
+      while (ownQueue.length && t.players.length < t.size) t.players.push(ownQueue.shift());
+      t.players.sort((a, b) => (a.squad === b.squad ? a.num - b.num : (a.squad === own[0]?.squad ? -1 : 1)));
+      t.mixed = new Set(t.players.map((p) => p.squad)).size > 1;
+    }
+    return teams;
   }
+
+
 
   // Which players from a crossing squad cross over in round r. The crossover
   // slots walk through the squad so no child is off-squad all session: the
